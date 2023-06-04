@@ -1,0 +1,3680 @@
+---
+title: "Respiratory virus"
+author: "Gustavo"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: 
+  html_document:
+    theme: paper
+    highlight: tango
+    number_sections: false
+    toc: false
+    toc_float: false
+---
+
+```{r setup, include=FALSE}
+
+# HIV (or performed_hiv_result_v2_v2_v2_v2_v2_v2), TB, sickle cell
+# check discharge (4 or 5 levels?)
+
+knitr::opts_chunk$set(
+	echo = FALSE,
+	message = FALSE,
+	warning = FALSE
+)
+library(compareGroups)
+library(kableExtra)
+library(tidyverse)
+library(lubridate)
+library(arsenal)
+library(mice)
+library(haven)
+library(gridExtra)
+library(psych)
+library(rms)
+library(anthro)
+library(Hmisc)
+library(sjPlot)
+library(sjmisc)
+library(sjlabelled)
+
+
+my_controls <- tableby.control(
+  test = T,
+  total = T,
+  numeric.test = "kwt", cat.test = "chisq",
+  numeric.stats = c("meansd", "medianq1q3", "range", "Nmiss2"),
+  cat.stats = c("countpct", "Nmiss2"),
+  stats.labels = list(
+    meansd = "Mean (SD)",
+    medianq1q3 = "Median (Q1, Q3)",
+    range = "Min - Max",
+    Nmiss2 = "Missing"
+  )
+)
+
+```
+
+
+```{r}
+#Clear existing data and graphics
+rm(list=ls())
+graphics.off()
+#Load Hmisc library
+library(Hmisc)
+#Read Data
+setwd("~/PRISM/RSV-Influenza/data R")
+#data=read.csv('RespiratoryVirusPrev_DATA_2022-06-06_1250.csv')
+data=read.csv('RespiratoryVirusPrev_DATA_2022-09-26_1318.csv')
+#Setting Labels
+
+label(data$record_id)="Record ID"
+label(data$redcap_data_access_group)="Data Access Group"
+label(data$redcap_survey_identifier)="Survey Identifier"
+label(data$introduction_and_screening_timestamp)="Survey Timestamp"
+label(data$study_id)="Study ID (ex: SL_20_001)"
+label(data$chart_id)="Chart ID (Medical Record ID)   Enter participants Initials (first and last name) and then date of birth DD/MM/Year  ex: Robert Samuels, Feb 6, 2020  =  RS-06-02-20"
+label(data$date_crf_completed)="Date CRF completed"
+label(data$interviewer_s_initials)="Interviewers Initials (Ex: Robert Samuels = RS)"
+label(data$child_24_mnths)="Children < 24 months"
+label(data$hospitalized_cases)="Child was admitted within 48 hours before enrollment"
+label(data$resp_symp___1)="Child presenting with any of the following respiratory symptoms (< 14 days prior to presentation) (choice=Cough)"
+label(data$resp_symp___2)="Child presenting with any of the following respiratory symptoms (< 14 days prior to presentation) (choice=Retractions)"
+label(data$resp_symp___3)="Child presenting with any of the following respiratory symptoms (< 14 days prior to presentation) (choice=Fast Breathing)"
+label(data$resp_symp___4)="Child presenting with any of the following respiratory symptoms (< 14 days prior to presentation) (choice=Nasal Flaring)"
+label(data$resp_symp___5)="Child presenting with any of the following respiratory symptoms (< 14 days prior to presentation) (choice=Wheezing)"
+label(data$resp_symp___6)="Child presenting with any of the following respiratory symptoms (< 14 days prior to presentation) (choice=Stridor)"
+label(data$resp_symp___7)="Child presenting with any of the following respiratory symptoms (< 14 days prior to presentation) (choice=Nasal congestion)"
+label(data$resp_symp___8)="Child presenting with any of the following respiratory symptoms (< 14 days prior to presentation) (choice=Shortness of breath)"
+label(data$resp_symp___9)="Child presenting with any of the following respiratory symptoms (< 14 days prior to presentation) (choice=Others (Please specify))"
+label(data$other_presenting_symptoms)="If Other, please specify"
+label(data$newborns_never_discharged)="Newborns who were never discharged from the hospital"
+label(data$symps_14_days)="Duration of symptoms >14 days before enrollment"
+label(data$consent_obtained)="Consent was obtained, signed and copied"
+label(data$consent_obtained_from)="Consent obtained from:"
+label(data$informed_consent_obtained)="If other, from options listed above, please specify"
+label(data$introduction_and_screening_complete)="Complete?"
+label(data$demographics_timestamp)="Survey Timestamp"
+label(data$sex_v2)="Childs Sex"
+label(data$dob_v2)="Child´s Date of Birth"
+label(data$mother_name_v2)="Name of mother"
+label(data$dob_mother_known_v2)="Mothers Date of Birth Known"
+label(data$dob_known_v2)="If Mother´s Date of Birth is known, DOB:"
+label(data$estimated_age)="If Mother´s DOB is not known, what is the estimated age?"
+label(data$doe_v2)="Date of Enrollment in Study"
+label(data$demographics_complete)="Complete?"
+label(data$current_illness_and_medical_history_timestamp)="Survey Timestamp"
+label(data$doa_v2_v2)="Date of Admission to Hospital:"
+label(data$bronchiolitis)="Bronchiolitis"
+label(data$bronchitis)="Bronchitis"
+label(data$croup)="laryngo-tracheobronchitis"
+label(data$fever_localizing_signs)="Fever without Localizing signs"
+label(data$pneumonia)="Pneumonia"
+label(data$asthma)="Asthma"
+label(data$sam)="Severe Acute Malnutrition"
+label(data$diarrhea)="Diarrhea"
+label(data$otitis_media)="Otitis Media"
+label(data$measles)="Measles"
+label(data$scd)="Sickle Cell Disease"
+label(data$hiv_aids)="HIV/AIDS"
+label(data$tb)="Tuberculosis"
+label(data$typhoid_fever)="Typhoid Fever"
+label(data$poisoning)="Poisoning"
+label(data$lassa_fever)="Lassa Fever"
+label(data$heart_failure)="Heart Failure"
+label(data$asp_pneumonia)="Aspiration Pneumonia"
+label(data$fb_ingestion)="Foreign Body Ingestion"
+label(data$rash)="Rash"
+label(data$other)="Other (please specify below)"
+label(data$other_adm_diag_v2_v2)="If Other , Please specify"
+label(data$days_of_symptoms_v2_v2)="Number of days the child was sick BEFORE admission to the hospital"
+label(data$date_of_illness_onset_v2_v2)="Date of Illness Onset"
+label(data$cough)="Cough"
+label(data$fever_38)="Fever >/=38ºC"
+label(data$vomiting)="Vomiting"
+label(data$apnea)="Apnea"
+label(data$seizures)="Seizures"
+label(data$fatigue)="Fatigue/weakness"
+label(data$nasal_congestion)="Nasal Congestion"
+label(data$wheezing)="Wheezing"
+label(data$diarrhea_symp)="Diarrhea"
+label(data$earache)="Earache"
+label(data$skin_rash)="Skin rash"
+label(data$hypothermia)="Hypothermia"
+label(data$runny_nose)="Runny nose"
+label(data$red_eyes)="Red eyes"
+label(data$poor_feeding)="Poor feeding"
+label(data$dyspnea)="Shortness of breath"
+label(data$fast_breathing)="Fast breathing"
+label(data$irritability)="Irritabilty/fussiness"
+label(data$other_symptom)="Other (Please Specify)"
+label(data$other_current_symptom_v2_v2)="If Other  please specify"
+label(data$use_of_antibiotics_v2_v2)="Antibiotic  use PRIOR to hospitalization for this illness"
+label(data$antibiotic_used_v2_v2___1)="If YES, which antibiotic(s) (choice=Amoxicillin)"
+label(data$antibiotic_used_v2_v2___2)="If YES, which antibiotic(s) (choice=Erythromycin)"
+label(data$antibiotic_used_v2_v2___3)="If YES, which antibiotic(s) (choice=Azithromycin)"
+label(data$antibiotic_used_v2_v2___4)="If YES, which antibiotic(s) (choice=Cefuroxime)"
+label(data$antibiotic_used_v2_v2___5)="If YES, which antibiotic(s) (choice=Augmentin)"
+label(data$antibiotic_used_v2_v2___6)="If YES, which antibiotic(s) (choice=Trimethoprim/sulfamethoxazole (Septrin))"
+label(data$antibiotic_used_v2_v2___7)="If YES, which antibiotic(s) (choice=Unknown)"
+label(data$antibiotic_used_v2_v2___8)="If YES, which antibiotic(s) (choice=Other (Please Specify))"
+label(data$other_antibiotic_used_v2_v2)="If Other  Please specify"
+label(data$ga_weeks_v2_v2)="Gestational Age (weeks) If born at full-term, write 40"
+label(data$mode_of_delivery_v2_v2)="Type of Birth Delivery"
+label(data$birth_weight_v2_v2)="Childs Birth Weight (kg)"
+label(data$multiple_gestation_v2_v2)="Multiple Gestation Pregnancy "
+label(data$multiple_gestation_1_v2_v2)="If yes, the child is a:"
+label(data$other_multiple_gestation_v2_v2)="Please specify Other "
+label(data$medical_conditions_v2_v2)="Does the child have any underlying medical conditions?"
+label(data$yes_med_condition_v2_v2___1)="If Yes,  (check all that apply)    (choice=Sickle Cell diseae)"
+label(data$yes_med_condition_v2_v2___2)="If Yes,  (check all that apply)    (choice=Tuberculosis)"
+label(data$yes_med_condition_v2_v2___3)="If Yes,  (check all that apply)    (choice=HIV/AIDS)"
+label(data$yes_med_condition_v2_v2___4)="If Yes,  (check all that apply)    (choice=Asthma)"
+label(data$yes_med_condition_v2_v2___5)="If Yes,  (check all that apply)    (choice=Malnutrition)"
+label(data$yes_med_condition_v2_v2___6)="If Yes,  (check all that apply)    (choice=Other)"
+label(data$other_med_condition_v2_v2)="If Other, please specify"
+label(data$current_illness_and_medical_history_complete)="Complete?"
+label(data$dietnutritional_and_social_history_timestamp)="Survey Timestamp"
+label(data$hx_breastfeeding)="History of breastfeeding"
+label(data$duration_bf)="Duration of breastfeeding (in months)"
+label(data$diet_v2_v2_v2)="What is the current diet of the child:"
+label(data$rooms_in_household_v2_v2_v2)="Number of rooms used for sleeping in the household"
+label(data$sleep_with_person_v2_v2_v2)="Does child sleep with another person in the household"
+label(data$sleep_with_person_yes_v2_v2_v2___1)="If Yes, who? (choice=Mother, only)"
+label(data$sleep_with_person_yes_v2_v2_v2___2)="If Yes, who? (choice=Father, only)"
+label(data$sleep_with_person_yes_v2_v2_v2___3)="If Yes, who? (choice=Mother and Father)"
+label(data$sleep_with_person_yes_v2_v2_v2___4)="If Yes, who? (choice=Sibling(s))"
+label(data$sleep_with_person_yes_v2_v2_v2___5)="If Yes, who? (choice=Other (Please specify))"
+label(data$other_sleep_person_v2_v2_v2)="If Other, please specify"
+label(data$number_in_house_v2_v2_v2)="Number of household members"
+label(data$no_5_yrs_v2_v2_v2)="How many are < 5 years old"
+label(data$num_mosq_net)="How many mosquito nets does your family have in the house?"
+label(data$mosq_net_bed)="How many mosquito nets do you have compared to sleeping areas?"
+label(data$mosquito_net_v2_v2_v2)="Did the child sleep under a mosquito net the last night BEFORE admission?"
+label(data$mother_s_education_v2_v2_v2)="Mothers highest level of education"
+label(data$father_s_education_v2_v2_v2)="Fathers highest education"
+label(data$household_member_smokes_v2_v2_v2)="Does anyone in the household smoke?"
+label(data$use_indoor_burning_stove_v2_v2_v2)="Does your household use an indoor burning stove"
+label(data$sick_family_member_2_wks_v2_v2_v2)="Has anyone in the family been sick and/or had an ARI in the last 2 weeks? "
+label(data$yes_sick_household_member_v2_v2_v2)="If yes, how many people in household?"
+label(data$sick_family_member_v2_v2_v2___1)="If Yes, which household member(s) (choice=Mother)"
+label(data$sick_family_member_v2_v2_v2___2)="If Yes, which household member(s) (choice=Father)"
+label(data$sick_family_member_v2_v2_v2___3)="If Yes, which household member(s) (choice=Siblings)"
+label(data$sick_family_member_v2_v2_v2___4)="If Yes, which household member(s) (choice=Other (Please specify))"
+label(data$other_fam_sick)="Other, please specify"
+label(data$dietnutritional_and_social_history_complete)="Complete?"
+label(data$physical_exam_timestamp)="Survey Timestamp"
+label(data$temp_at_admission_v2_v2_v2_v2)="Temperature ºC"
+label(data$pulse_v2_v2_v2_v2)="Pulse Rate"
+label(data$resp_rate_v2_v2_v2_v2)="Respiratory rate"
+label(data$o2_sats_adm_v2_v2_v2_v2)="O2 Sats at admission:"
+label(data$flaring_accessory_muscle)="Nasal Flaring/ Use of Accessory Muscle"
+label(data$flaring_accessory_muscle1)="Nasal Flaring/ Use of Accessory Muscle "
+label(data$current_adm_weight_v2_v2_v2_v2)="Current Weight (kg)"
+label(data$current_height_length_v2_v2_v2_v2)="Current Height/Length (cm)"
+label(data$wheezing_on_exam)="Wheezing on Examination"
+label(data$wheezing_severity)="Wheezing severity"
+label(data$cxr_done_v2_v2_v2_v2)="Chest X-ray during this admission:"
+label(data$yes_cxr_v2_v2_v2_v2)="If Yes, "
+label(data$abnormal_cxr_v2_v2_v2_v2)="If abnormal Chest X-ray:"
+label(data$other_xray_finding)="Other, please specify"
+label(data$physical_exam_complete)="Complete?"
+label(data$medical_chart_review_timestamp)="Survey Timestamp"
+label(data$icu_admission_v2_v2_v2_v2_v2)="Admitted to ICU during hospitalization:      "
+label(data$lassa_ward_adm_v2_v2_v2_v2_v2)="Referred to the Lassa Fever Ward during Hospitalization"
+label(data$o2_delivery_v2_v2_v2_v2_v2)="Oxygen administered in the ward"
+label(data$days_on_02_v2_v2_v2_v2_v2)="If yes, number of days on oxygen"
+label(data$hosp_antibiotic_use_v2_v2_v2_v2_v2)="Antibiotics given DURING Hospitalization"
+label(data$antibiotics_used_v2___1)="Name of Antibiotics Used (choice=Amoxicillin)"
+label(data$antibiotics_used_v2___2)="Name of Antibiotics Used (choice=Amoxicillin/Clavulanate (Augmentin))"
+label(data$antibiotics_used_v2___3)="Name of Antibiotics Used (choice=Ampicillin)"
+label(data$antibiotics_used_v2___4)="Name of Antibiotics Used (choice=Cefixime (Suprax))"
+label(data$antibiotics_used_v2___5)="Name of Antibiotics Used (choice=Ceftriaxone (Rocephin))"
+label(data$antibiotics_used_v2___6)="Name of Antibiotics Used (choice=Cefotaxime (Claforan))"
+label(data$antibiotics_used_v2___7)="Name of Antibiotics Used (choice=Cefuroxime (Zinacef))"
+label(data$antibiotics_used_v2___8)="Name of Antibiotics Used (choice=Azithromycin (Zithromax))"
+label(data$antibiotics_used_v2___9)="Name of Antibiotics Used (choice=Erythromycin)"
+label(data$antibiotics_used_v2___10)="Name of Antibiotics Used (choice=Gentamycin)"
+label(data$antibiotics_used_v2___11)="Name of Antibiotics Used (choice=Clindamycin)"
+label(data$antibiotics_used_v2___12)="Name of Antibiotics Used (choice=Imipenem)"
+label(data$antibiotics_used_v2___13)="Name of Antibiotics Used (choice=Other)"
+label(data$antibiotics_used_v2___14)="Name of Antibiotics Used (choice=Unknown)"
+label(data$other_antibiotic)="If Other please specify"
+label(data$antimalarials_hosp)="Antimalarials given DURING hospitalization"
+label(data$antimalarials_used___1)="Name of antimalarials used (choice=Artesunate injectable or intravenous)"
+label(data$antimalarials_used___2)="Name of antimalarials used (choice=Artemether injectable)"
+label(data$antimalarials_used___3)="Name of antimalarials used (choice=Quinine injectable)"
+label(data$antimalarials_used___4)="Name of antimalarials used (choice=Artemether + lumefantrine (Coartem, Lonart or Malfan, Lokmal, bicortem))"
+label(data$antimalarials_used___5)="Name of antimalarials used (choice=Sulfadoxine/pyrimethamine (Fansidar))"
+label(data$discharge_diagnosis_v2_v2_v2_v2_v2___1)="Were any of the following diagnoses listed in the medical record for a Discharge diagnosis during this visit? (Check all that Apply) (choice=Bronchiolitis)"
+label(data$discharge_diagnosis_v2_v2_v2_v2_v2___2)="Were any of the following diagnoses listed in the medical record for a Discharge diagnosis during this visit? (Check all that Apply) (choice=Bronchitis)"
+label(data$discharge_diagnosis_v2_v2_v2_v2_v2___3)="Were any of the following diagnoses listed in the medical record for a Discharge diagnosis during this visit? (Check all that Apply) (choice=Croup)"
+label(data$discharge_diagnosis_v2_v2_v2_v2_v2___4)="Were any of the following diagnoses listed in the medical record for a Discharge diagnosis during this visit? (Check all that Apply) (choice=Fever without localizing signs)"
+label(data$discharge_diagnosis_v2_v2_v2_v2_v2___5)="Were any of the following diagnoses listed in the medical record for a Discharge diagnosis during this visit? (Check all that Apply) (choice=Pneumonia)"
+label(data$discharge_diagnosis_v2_v2_v2_v2_v2___6)="Were any of the following diagnoses listed in the medical record for a Discharge diagnosis during this visit? (Check all that Apply) (choice=Laryngo-tracheo-bronchitis)"
+label(data$discharge_diagnosis_v2_v2_v2_v2_v2___7)="Were any of the following diagnoses listed in the medical record for a Discharge diagnosis during this visit? (Check all that Apply) (choice=Asthma)"
+label(data$discharge_diagnosis_v2_v2_v2_v2_v2___8)="Were any of the following diagnoses listed in the medical record for a Discharge diagnosis during this visit? (Check all that Apply) (choice=Severe Acute Malnutrition)"
+label(data$discharge_diagnosis_v2_v2_v2_v2_v2___9)="Were any of the following diagnoses listed in the medical record for a Discharge diagnosis during this visit? (Check all that Apply) (choice=Malaria)"
+label(data$discharge_diagnosis_v2_v2_v2_v2_v2___10)="Were any of the following diagnoses listed in the medical record for a Discharge diagnosis during this visit? (Check all that Apply) (choice=Diarrhea)"
+label(data$discharge_diagnosis_v2_v2_v2_v2_v2___11)="Were any of the following diagnoses listed in the medical record for a Discharge diagnosis during this visit? (Check all that Apply) (choice=Otitis Media)"
+label(data$discharge_diagnosis_v2_v2_v2_v2_v2___12)="Were any of the following diagnoses listed in the medical record for a Discharge diagnosis during this visit? (Check all that Apply) (choice=Measles)"
+label(data$discharge_diagnosis_v2_v2_v2_v2_v2___13)="Were any of the following diagnoses listed in the medical record for a Discharge diagnosis during this visit? (Check all that Apply) (choice=Rash)"
+label(data$discharge_diagnosis_v2_v2_v2_v2_v2___14)="Were any of the following diagnoses listed in the medical record for a Discharge diagnosis during this visit? (Check all that Apply) (choice=Sickle Cell)"
+label(data$discharge_diagnosis_v2_v2_v2_v2_v2___15)="Were any of the following diagnoses listed in the medical record for a Discharge diagnosis during this visit? (Check all that Apply) (choice=HIV/AIDS)"
+label(data$discharge_diagnosis_v2_v2_v2_v2_v2___16)="Were any of the following diagnoses listed in the medical record for a Discharge diagnosis during this visit? (Check all that Apply) (choice=Tuberculosis)"
+label(data$discharge_diagnosis_v2_v2_v2_v2_v2___17)="Were any of the following diagnoses listed in the medical record for a Discharge diagnosis during this visit? (Check all that Apply) (choice=Typhoid)"
+label(data$discharge_diagnosis_v2_v2_v2_v2_v2___18)="Were any of the following diagnoses listed in the medical record for a Discharge diagnosis during this visit? (Check all that Apply) (choice=Aspiration pneumonia)"
+label(data$discharge_diagnosis_v2_v2_v2_v2_v2___19)="Were any of the following diagnoses listed in the medical record for a Discharge diagnosis during this visit? (Check all that Apply) (choice=Foreign Body Aspiration)"
+label(data$discharge_diagnosis_v2_v2_v2_v2_v2___20)="Were any of the following diagnoses listed in the medical record for a Discharge diagnosis during this visit? (Check all that Apply) (choice=Poisoning)"
+label(data$discharge_diagnosis_v2_v2_v2_v2_v2___21)="Were any of the following diagnoses listed in the medical record for a Discharge diagnosis during this visit? (Check all that Apply) (choice=Heart Failure)"
+label(data$discharge_diagnosis_v2_v2_v2_v2_v2___22)="Were any of the following diagnoses listed in the medical record for a Discharge diagnosis during this visit? (Check all that Apply) (choice=Lassa Fever)"
+label(data$discharge_diagnosis_v2_v2_v2_v2_v2___23)="Were any of the following diagnoses listed in the medical record for a Discharge diagnosis during this visit? (Check all that Apply) (choice=Other)"
+label(data$other_discharge_diag_v2_v2_v2_v2_v2)="If Other, please specify"
+label(data$dod_v2_v2_v2_v2_v2)="Date of Discharge:"
+label(data$discharge_status_v2_v2_v2_v2_v2)="Status at discharge"
+label(data$medical_chart_review_complete)="Complete?"
+label(data$laboratory_results_timestamp)="Survey Timestamp"
+label(data$cbc_collected)="CBC was collected"
+label(data$cbc)="CBC with differential: Date collected"
+label(data$wbc)="WBC 10 x 3/uL"
+label(data$hb)="Hemoglobin (Hb)  (g/dL)"
+label(data$neut)="Neutrophils (%)"
+label(data$lymph)="Lymphocytes (%)"
+label(data$plat)="Platelets (uL)"
+label(data$esr_collected)="ESR was collected"
+label(data$esr_date)="ESR  Date Collected"
+label(data$esr)="ESR (mm/h)"
+label(data$sickiling_test_v2_v2_v2_v2_v2_v2)="Sickling smear for Sickle cell"
+label(data$sickling_result_v2_v2_v2_v2_v2_v2)="Sickling Result"
+label(data$malaria_smear_v2_v2_v2_v2_v2_v2)="Malaria Blood Smear"
+label(data$malaria_smear_result_v2_v2_v2_v2_v2_v2)="Malaria Blood Smear Result (# of parasites per mililiter)"
+label(data$widal_test_v2_v2_v2_v2_v2_v2)="Widal "
+label(data$widal_reult_v2_v2_v2_v2_v2_v2)="Widal Result (O Titer) (ex: 1:160)"
+label(data$rdt_malaria_v2_v2_v2_v2_v2_v2)="Malaria RDT"
+label(data$performed_malaria_result_v2_v2_v2_v2_v2_v2)="Malaria RDT result"
+label(data$hiv_rdt_v2_v2_v2_v2_v2_v2)="HIV RDT"
+label(data$performed_hiv_result_v2_v2_v2_v2_v2_v2)="HIV RDT result"
+label(data$lf_rdt_v2_v2_v2_v2_v2_v2)="Lassa Fever RDT"
+label(data$lf_rdt_result_v2_v2_v2_v2_v2_v2)="Lassa Fever RDT result"
+label(data$laboratory_results_complete)="Complete?"
+#Setting Units
+
+
+#Setting Factors(will create new variable for factors)
+data$redcap_data_access_group.factor = factor(data$redcap_data_access_group,levels=c("respiratory_virus"))
+data$child_24_mnths.factor = factor(data$child_24_mnths,levels=c("1","0"))
+data$hospitalized_cases.factor = factor(data$hospitalized_cases,levels=c("1","0"))
+data$resp_symp___1.factor = factor(data$resp_symp___1,levels=c("0","1"))
+data$resp_symp___2.factor = factor(data$resp_symp___2,levels=c("0","1"))
+data$resp_symp___3.factor = factor(data$resp_symp___3,levels=c("0","1"))
+data$resp_symp___4.factor = factor(data$resp_symp___4,levels=c("0","1"))
+data$resp_symp___5.factor = factor(data$resp_symp___5,levels=c("0","1"))
+data$resp_symp___6.factor = factor(data$resp_symp___6,levels=c("0","1"))
+data$resp_symp___7.factor = factor(data$resp_symp___7,levels=c("0","1"))
+data$resp_symp___8.factor = factor(data$resp_symp___8,levels=c("0","1"))
+data$resp_symp___9.factor = factor(data$resp_symp___9,levels=c("0","1"))
+data$newborns_never_discharged.factor = factor(data$newborns_never_discharged,levels=c("1","0"))
+data$symps_14_days.factor = factor(data$symps_14_days,levels=c("1","0"))
+data$consent_obtained.factor = factor(data$consent_obtained,levels=c("1","0"))
+data$consent_obtained_from.factor = factor(data$consent_obtained_from,levels=c("1","2","3","4","5","6","7","8","9"))
+data$introduction_and_screening_complete.factor = factor(data$introduction_and_screening_complete,levels=c("0","1","2"))
+data$sex_v2.factor = factor(data$sex_v2,levels=c("0","1"))
+data$dob_mother_known_v2.factor = factor(data$dob_mother_known_v2,levels=c("1","0"))
+data$demographics_complete.factor = factor(data$demographics_complete,levels=c("0","1","2"))
+data$bronchiolitis.factor = factor(data$bronchiolitis,levels=c("1","2"))
+data$bronchitis.factor = factor(data$bronchitis,levels=c("1","2"))
+data$croup.factor = factor(data$croup,levels=c("1","2"))
+data$fever_localizing_signs.factor = factor(data$fever_localizing_signs,levels=c("1","2"))
+data$pneumonia.factor = factor(data$pneumonia,levels=c("1","2"))
+data$asthma.factor = factor(data$asthma,levels=c("1","2"))
+data$sam.factor = factor(data$sam,levels=c("1","2"))
+data$diarrhea.factor = factor(data$diarrhea,levels=c("1","2"))
+data$otitis_media.factor = factor(data$otitis_media,levels=c("1","2"))
+data$measles.factor = factor(data$measles,levels=c("1","2"))
+data$scd.factor = factor(data$scd,levels=c("1","2"))
+data$hiv_aids.factor = factor(data$hiv_aids,levels=c("1","2"))
+data$tb.factor = factor(data$tb,levels=c("1","2"))
+data$typhoid_fever.factor = factor(data$typhoid_fever,levels=c("1","2"))
+data$poisoning.factor = factor(data$poisoning,levels=c("1","2"))
+data$lassa_fever.factor = factor(data$lassa_fever,levels=c("1","2"))
+data$heart_failure.factor = factor(data$heart_failure,levels=c("1","2"))
+data$asp_pneumonia.factor = factor(data$asp_pneumonia,levels=c("1","2"))
+data$fb_ingestion.factor = factor(data$fb_ingestion,levels=c("1","2"))
+data$rash.factor = factor(data$rash,levels=c("1","2"))
+data$other.factor = factor(data$other,levels=c("1","2"))
+data$cough.factor = factor(data$cough,levels=c("1","2"))
+data$fever_38.factor = factor(data$fever_38,levels=c("1","2"))
+data$vomiting.factor = factor(data$vomiting,levels=c("1","2"))
+data$apnea.factor = factor(data$apnea,levels=c("1","2"))
+data$seizures.factor = factor(data$seizures,levels=c("1","2"))
+data$fatigue.factor = factor(data$fatigue,levels=c("1","2"))
+data$nasal_congestion.factor = factor(data$nasal_congestion,levels=c("1","2"))
+data$wheezing.factor = factor(data$wheezing,levels=c("1","2"))
+data$diarrhea_symp.factor = factor(data$diarrhea_symp,levels=c("1","2"))
+data$earache.factor = factor(data$earache,levels=c("1","2"))
+data$skin_rash.factor = factor(data$skin_rash,levels=c("1","2"))
+data$hypothermia.factor = factor(data$hypothermia,levels=c("1","2"))
+data$runny_nose.factor = factor(data$runny_nose,levels=c("1","2"))
+data$red_eyes.factor = factor(data$red_eyes,levels=c("1","2"))
+data$poor_feeding.factor = factor(data$poor_feeding,levels=c("1","2"))
+data$dyspnea.factor = factor(data$dyspnea,levels=c("1","2"))
+data$fast_breathing.factor = factor(data$fast_breathing,levels=c("1","2"))
+data$irritability.factor = factor(data$irritability,levels=c("1","2"))
+data$other_symptom.factor = factor(data$other_symptom,levels=c("1","2"))
+data$use_of_antibiotics_v2_v2.factor = factor(data$use_of_antibiotics_v2_v2,levels=c("1","2","3"))
+data$antibiotic_used_v2_v2___1.factor = factor(data$antibiotic_used_v2_v2___1,levels=c("0","1"))
+data$antibiotic_used_v2_v2___2.factor = factor(data$antibiotic_used_v2_v2___2,levels=c("0","1"))
+data$antibiotic_used_v2_v2___3.factor = factor(data$antibiotic_used_v2_v2___3,levels=c("0","1"))
+data$antibiotic_used_v2_v2___4.factor = factor(data$antibiotic_used_v2_v2___4,levels=c("0","1"))
+data$antibiotic_used_v2_v2___5.factor = factor(data$antibiotic_used_v2_v2___5,levels=c("0","1"))
+data$antibiotic_used_v2_v2___6.factor = factor(data$antibiotic_used_v2_v2___6,levels=c("0","1"))
+data$antibiotic_used_v2_v2___7.factor = factor(data$antibiotic_used_v2_v2___7,levels=c("0","1"))
+data$antibiotic_used_v2_v2___8.factor = factor(data$antibiotic_used_v2_v2___8,levels=c("0","1"))
+data$mode_of_delivery_v2_v2.factor = factor(data$mode_of_delivery_v2_v2,levels=c("1","2"))
+data$multiple_gestation_v2_v2.factor = factor(data$multiple_gestation_v2_v2,levels=c("1","2","3"))
+data$multiple_gestation_1_v2_v2.factor = factor(data$multiple_gestation_1_v2_v2,levels=c("1","2","3"))
+data$medical_conditions_v2_v2.factor = factor(data$medical_conditions_v2_v2,levels=c("1","2","3"))
+data$yes_med_condition_v2_v2___1.factor = factor(data$yes_med_condition_v2_v2___1,levels=c("0","1"))
+data$yes_med_condition_v2_v2___2.factor = factor(data$yes_med_condition_v2_v2___2,levels=c("0","1"))
+data$yes_med_condition_v2_v2___3.factor = factor(data$yes_med_condition_v2_v2___3,levels=c("0","1"))
+data$yes_med_condition_v2_v2___4.factor = factor(data$yes_med_condition_v2_v2___4,levels=c("0","1"))
+data$yes_med_condition_v2_v2___5.factor = factor(data$yes_med_condition_v2_v2___5,levels=c("0","1"))
+data$yes_med_condition_v2_v2___6.factor = factor(data$yes_med_condition_v2_v2___6,levels=c("0","1"))
+data$current_illness_and_medical_history_complete.factor = factor(data$current_illness_and_medical_history_complete,levels=c("0","1","2"))
+data$hx_breastfeeding.factor = factor(data$hx_breastfeeding,levels=c("1","0"))
+data$diet_v2_v2_v2.factor = factor(data$diet_v2_v2_v2,levels=c("1","2","3","4","5"))
+data$rooms_in_household_v2_v2_v2.factor = factor(data$rooms_in_household_v2_v2_v2,levels=c("1","2","3","4","5","6"))
+data$sleep_with_person_v2_v2_v2.factor = factor(data$sleep_with_person_v2_v2_v2,levels=c("1","0"))
+data$sleep_with_person_yes_v2_v2_v2___1.factor = factor(data$sleep_with_person_yes_v2_v2_v2___1,levels=c("0","1"))
+data$sleep_with_person_yes_v2_v2_v2___2.factor = factor(data$sleep_with_person_yes_v2_v2_v2___2,levels=c("0","1"))
+data$sleep_with_person_yes_v2_v2_v2___3.factor = factor(data$sleep_with_person_yes_v2_v2_v2___3,levels=c("0","1"))
+data$sleep_with_person_yes_v2_v2_v2___4.factor = factor(data$sleep_with_person_yes_v2_v2_v2___4,levels=c("0","1"))
+data$sleep_with_person_yes_v2_v2_v2___5.factor = factor(data$sleep_with_person_yes_v2_v2_v2___5,levels=c("0","1"))
+data$mosq_net_bed.factor = factor(data$mosq_net_bed,levels=c("1","2","3"))
+data$mosquito_net_v2_v2_v2.factor = factor(data$mosquito_net_v2_v2_v2,levels=c("1","2","3"))
+data$mother_s_education_v2_v2_v2.factor = factor(data$mother_s_education_v2_v2_v2,levels=c("1","2","3","4","5","6"))
+data$father_s_education_v2_v2_v2.factor = factor(data$father_s_education_v2_v2_v2,levels=c("1","2","3","4","5","6"))
+data$household_member_smokes_v2_v2_v2.factor = factor(data$household_member_smokes_v2_v2_v2,levels=c("1","2","3"))
+data$use_indoor_burning_stove_v2_v2_v2.factor = factor(data$use_indoor_burning_stove_v2_v2_v2,levels=c("1","2","3"))
+data$sick_family_member_2_wks_v2_v2_v2.factor = factor(data$sick_family_member_2_wks_v2_v2_v2,levels=c("1","0"))
+data$sick_family_member_v2_v2_v2___1.factor = factor(data$sick_family_member_v2_v2_v2___1,levels=c("0","1"))
+data$sick_family_member_v2_v2_v2___2.factor = factor(data$sick_family_member_v2_v2_v2___2,levels=c("0","1"))
+data$sick_family_member_v2_v2_v2___3.factor = factor(data$sick_family_member_v2_v2_v2___3,levels=c("0","1"))
+data$sick_family_member_v2_v2_v2___4.factor = factor(data$sick_family_member_v2_v2_v2___4,levels=c("0","1"))
+data$dietnutritional_and_social_history_complete.factor = factor(data$dietnutritional_and_social_history_complete,levels=c("0","1","2"))
+data$flaring_accessory_muscle.factor = factor(data$flaring_accessory_muscle,levels=c("1","0"))
+data$flaring_accessory_muscle1.factor = factor(data$flaring_accessory_muscle1,levels=c("0","1","2","3"))
+data$wheezing_on_exam.factor = factor(data$wheezing_on_exam,levels=c("1","0"))
+data$wheezing_severity.factor = factor(data$wheezing_severity,levels=c("0","1","2","3"))
+data$cxr_done_v2_v2_v2_v2.factor = factor(data$cxr_done_v2_v2_v2_v2,levels=c("1","2","3"))
+data$yes_cxr_v2_v2_v2_v2.factor = factor(data$yes_cxr_v2_v2_v2_v2,levels=c("1","2"))
+data$abnormal_cxr_v2_v2_v2_v2.factor = factor(data$abnormal_cxr_v2_v2_v2_v2,levels=c("1","2","3","4","5"))
+data$physical_exam_complete.factor = factor(data$physical_exam_complete,levels=c("0","1","2"))
+data$icu_admission_v2_v2_v2_v2_v2.factor = factor(data$icu_admission_v2_v2_v2_v2_v2,levels=c("1","2"))
+data$lassa_ward_adm_v2_v2_v2_v2_v2.factor = factor(data$lassa_ward_adm_v2_v2_v2_v2_v2,levels=c("1","0"))
+data$o2_delivery_v2_v2_v2_v2_v2.factor = factor(data$o2_delivery_v2_v2_v2_v2_v2,levels=c("1","2","3"))
+data$hosp_antibiotic_use_v2_v2_v2_v2_v2.factor = factor(data$hosp_antibiotic_use_v2_v2_v2_v2_v2,levels=c("1","2","3"))
+data$antibiotics_used_v2___1.factor = factor(data$antibiotics_used_v2___1,levels=c("0","1"))
+data$antibiotics_used_v2___2.factor = factor(data$antibiotics_used_v2___2,levels=c("0","1"))
+data$antibiotics_used_v2___3.factor = factor(data$antibiotics_used_v2___3,levels=c("0","1"))
+data$antibiotics_used_v2___4.factor = factor(data$antibiotics_used_v2___4,levels=c("0","1"))
+data$antibiotics_used_v2___5.factor = factor(data$antibiotics_used_v2___5,levels=c("0","1"))
+data$antibiotics_used_v2___6.factor = factor(data$antibiotics_used_v2___6,levels=c("0","1"))
+data$antibiotics_used_v2___7.factor = factor(data$antibiotics_used_v2___7,levels=c("0","1"))
+data$antibiotics_used_v2___8.factor = factor(data$antibiotics_used_v2___8,levels=c("0","1"))
+data$antibiotics_used_v2___9.factor = factor(data$antibiotics_used_v2___9,levels=c("0","1"))
+data$antibiotics_used_v2___10.factor = factor(data$antibiotics_used_v2___10,levels=c("0","1"))
+data$antibiotics_used_v2___11.factor = factor(data$antibiotics_used_v2___11,levels=c("0","1"))
+data$antibiotics_used_v2___12.factor = factor(data$antibiotics_used_v2___12,levels=c("0","1"))
+data$antibiotics_used_v2___13.factor = factor(data$antibiotics_used_v2___13,levels=c("0","1"))
+data$antibiotics_used_v2___14.factor = factor(data$antibiotics_used_v2___14,levels=c("0","1"))
+data$antimalarials_hosp.factor = factor(data$antimalarials_hosp,levels=c("1","2","3"))
+data$antimalarials_used___1.factor = factor(data$antimalarials_used___1,levels=c("0","1"))
+data$antimalarials_used___2.factor = factor(data$antimalarials_used___2,levels=c("0","1"))
+data$antimalarials_used___3.factor = factor(data$antimalarials_used___3,levels=c("0","1"))
+data$antimalarials_used___4.factor = factor(data$antimalarials_used___4,levels=c("0","1"))
+data$antimalarials_used___5.factor = factor(data$antimalarials_used___5,levels=c("0","1"))
+data$discharge_diagnosis_v2_v2_v2_v2_v2___1.factor = factor(data$discharge_diagnosis_v2_v2_v2_v2_v2___1,levels=c("0","1"))
+data$discharge_diagnosis_v2_v2_v2_v2_v2___2.factor = factor(data$discharge_diagnosis_v2_v2_v2_v2_v2___2,levels=c("0","1"))
+data$discharge_diagnosis_v2_v2_v2_v2_v2___3.factor = factor(data$discharge_diagnosis_v2_v2_v2_v2_v2___3,levels=c("0","1"))
+data$discharge_diagnosis_v2_v2_v2_v2_v2___4.factor = factor(data$discharge_diagnosis_v2_v2_v2_v2_v2___4,levels=c("0","1"))
+data$discharge_diagnosis_v2_v2_v2_v2_v2___5.factor = factor(data$discharge_diagnosis_v2_v2_v2_v2_v2___5,levels=c("0","1"))
+data$discharge_diagnosis_v2_v2_v2_v2_v2___6.factor = factor(data$discharge_diagnosis_v2_v2_v2_v2_v2___6,levels=c("0","1"))
+data$discharge_diagnosis_v2_v2_v2_v2_v2___7.factor = factor(data$discharge_diagnosis_v2_v2_v2_v2_v2___7,levels=c("0","1"))
+data$discharge_diagnosis_v2_v2_v2_v2_v2___8.factor = factor(data$discharge_diagnosis_v2_v2_v2_v2_v2___8,levels=c("0","1"))
+data$discharge_diagnosis_v2_v2_v2_v2_v2___9.factor = factor(data$discharge_diagnosis_v2_v2_v2_v2_v2___9,levels=c("0","1"))
+data$discharge_diagnosis_v2_v2_v2_v2_v2___10.factor = factor(data$discharge_diagnosis_v2_v2_v2_v2_v2___10,levels=c("0","1"))
+data$discharge_diagnosis_v2_v2_v2_v2_v2___11.factor = factor(data$discharge_diagnosis_v2_v2_v2_v2_v2___11,levels=c("0","1"))
+data$discharge_diagnosis_v2_v2_v2_v2_v2___12.factor = factor(data$discharge_diagnosis_v2_v2_v2_v2_v2___12,levels=c("0","1"))
+data$discharge_diagnosis_v2_v2_v2_v2_v2___13.factor = factor(data$discharge_diagnosis_v2_v2_v2_v2_v2___13,levels=c("0","1"))
+data$discharge_diagnosis_v2_v2_v2_v2_v2___14.factor = factor(data$discharge_diagnosis_v2_v2_v2_v2_v2___14,levels=c("0","1"))
+data$discharge_diagnosis_v2_v2_v2_v2_v2___15.factor = factor(data$discharge_diagnosis_v2_v2_v2_v2_v2___15,levels=c("0","1"))
+data$discharge_diagnosis_v2_v2_v2_v2_v2___16.factor = factor(data$discharge_diagnosis_v2_v2_v2_v2_v2___16,levels=c("0","1"))
+data$discharge_diagnosis_v2_v2_v2_v2_v2___17.factor = factor(data$discharge_diagnosis_v2_v2_v2_v2_v2___17,levels=c("0","1"))
+data$discharge_diagnosis_v2_v2_v2_v2_v2___18.factor = factor(data$discharge_diagnosis_v2_v2_v2_v2_v2___18,levels=c("0","1"))
+data$discharge_diagnosis_v2_v2_v2_v2_v2___19.factor = factor(data$discharge_diagnosis_v2_v2_v2_v2_v2___19,levels=c("0","1"))
+data$discharge_diagnosis_v2_v2_v2_v2_v2___20.factor = factor(data$discharge_diagnosis_v2_v2_v2_v2_v2___20,levels=c("0","1"))
+data$discharge_diagnosis_v2_v2_v2_v2_v2___21.factor = factor(data$discharge_diagnosis_v2_v2_v2_v2_v2___21,levels=c("0","1"))
+data$discharge_diagnosis_v2_v2_v2_v2_v2___22.factor = factor(data$discharge_diagnosis_v2_v2_v2_v2_v2___22,levels=c("0","1"))
+data$discharge_diagnosis_v2_v2_v2_v2_v2___23.factor = factor(data$discharge_diagnosis_v2_v2_v2_v2_v2___23,levels=c("0","1"))
+data$discharge_status_v2_v2_v2_v2_v2.factor = factor(data$discharge_status_v2_v2_v2_v2_v2,levels=c("1","2","3","4","5"))
+data$medical_chart_review_complete.factor = factor(data$medical_chart_review_complete,levels=c("0","1","2"))
+data$cbc_collected.factor = factor(data$cbc_collected,levels=c("1","0"))
+data$esr_collected.factor = factor(data$esr_collected,levels=c("1","0"))
+data$sickiling_test_v2_v2_v2_v2_v2_v2.factor = factor(data$sickiling_test_v2_v2_v2_v2_v2_v2,levels=c("1","2"))
+data$sickling_result_v2_v2_v2_v2_v2_v2.factor = factor(data$sickling_result_v2_v2_v2_v2_v2_v2,levels=c("1","2","3"))
+data$malaria_smear_v2_v2_v2_v2_v2_v2.factor = factor(data$malaria_smear_v2_v2_v2_v2_v2_v2,levels=c("1","2"))
+data$widal_test_v2_v2_v2_v2_v2_v2.factor = factor(data$widal_test_v2_v2_v2_v2_v2_v2,levels=c("1","2"))
+data$rdt_malaria_v2_v2_v2_v2_v2_v2.factor = factor(data$rdt_malaria_v2_v2_v2_v2_v2_v2,levels=c("1","2"))
+data$performed_malaria_result_v2_v2_v2_v2_v2_v2.factor = factor(data$performed_malaria_result_v2_v2_v2_v2_v2_v2,levels=c("1","2","3"))
+data$hiv_rdt_v2_v2_v2_v2_v2_v2.factor = factor(data$hiv_rdt_v2_v2_v2_v2_v2_v2,levels=c("1","2"))
+data$performed_hiv_result_v2_v2_v2_v2_v2_v2.factor = factor(data$performed_hiv_result_v2_v2_v2_v2_v2_v2,levels=c("1","2","3"))
+data$lf_rdt_v2_v2_v2_v2_v2_v2.factor = factor(data$lf_rdt_v2_v2_v2_v2_v2_v2,levels=c("1","2"))
+data$lf_rdt_result_v2_v2_v2_v2_v2_v2.factor = factor(data$lf_rdt_result_v2_v2_v2_v2_v2_v2,levels=c("1","2","3"))
+data$laboratory_results_complete.factor = factor(data$laboratory_results_complete,levels=c("0","1","2"))
+
+levels(data$mother_s_education_v2_v2_v2.factor)[5:6] <-
+  'Some or completed college/university'
+
+levels(data$redcap_data_access_group.factor)=c("Respiratory Virus Prevalence in Sierra Leone Team")
+levels(data$child_24_mnths.factor)=c("Yes","No")
+levels(data$hospitalized_cases.factor)=c("Yes","No")
+levels(data$resp_symp___1.factor)=c("Unchecked","Checked")
+levels(data$resp_symp___2.factor)=c("Unchecked","Checked")
+levels(data$resp_symp___3.factor)=c("Unchecked","Checked")
+levels(data$resp_symp___4.factor)=c("Unchecked","Checked")
+levels(data$resp_symp___5.factor)=c("Unchecked","Checked")
+levels(data$resp_symp___6.factor)=c("Unchecked","Checked")
+levels(data$resp_symp___7.factor)=c("Unchecked","Checked")
+levels(data$resp_symp___8.factor)=c("Unchecked","Checked")
+levels(data$resp_symp___9.factor)=c("Unchecked","Checked")
+levels(data$newborns_never_discharged.factor)=c("Yes","No")
+levels(data$symps_14_days.factor)=c("Yes","No")
+levels(data$consent_obtained.factor)=c("Yes","No")
+levels(data$consent_obtained_from.factor)=c("Mother","Father","Aunt","Uncle","Grandfather","Grandmother","Stepmother","Sister","Other (Please specify)")
+levels(data$introduction_and_screening_complete.factor)=c("Incomplete","Unverified","Complete")
+levels(data$sex_v2.factor)=c("Male","Female")
+levels(data$dob_mother_known_v2.factor)=c("Yes","No")
+levels(data$demographics_complete.factor)=c("Incomplete","Unverified","Complete")
+levels(data$bronchiolitis.factor)=c("Yes","No")
+levels(data$bronchitis.factor)=c("Yes","No")
+levels(data$croup.factor)=c("Yes","No")
+levels(data$fever_localizing_signs.factor)=c("Yes","No")
+levels(data$pneumonia.factor)=c("Yes","No")
+levels(data$asthma.factor)=c("Yes","No")
+levels(data$sam.factor)=c("Yes","No")
+levels(data$diarrhea.factor)=c("Yes","No")
+levels(data$otitis_media.factor)=c("Yes","No")
+levels(data$measles.factor)=c("Yes","No")
+levels(data$scd.factor)=c("Yes","No")
+levels(data$hiv_aids.factor)=c("Yes","No")
+levels(data$tb.factor)=c("Yes","No")
+levels(data$typhoid_fever.factor)=c("Yes","No")
+levels(data$poisoning.factor)=c("Yes","No")
+levels(data$lassa_fever.factor)=c("Yes","No")
+levels(data$heart_failure.factor)=c("Yes","No")
+levels(data$asp_pneumonia.factor)=c("Yes","No")
+levels(data$fb_ingestion.factor)=c("Yes","No")
+levels(data$rash.factor)=c("Yes","No")
+levels(data$other.factor)=c("Yes","No")
+levels(data$cough.factor)=c("Yes","No")
+levels(data$fever_38.factor)=c("Yes","No")
+levels(data$vomiting.factor)=c("Yes","No")
+levels(data$apnea.factor)=c("Yes","No")
+levels(data$seizures.factor)=c("Yes","No")
+levels(data$fatigue.factor)=c("Yes","No")
+levels(data$nasal_congestion.factor)=c("Yes","No")
+levels(data$wheezing.factor)=c("Yes","No")
+levels(data$diarrhea_symp.factor)=c("Yes","No")
+levels(data$earache.factor)=c("Yes","No")
+levels(data$skin_rash.factor)=c("Yes","No")
+levels(data$hypothermia.factor)=c("Yes","No")
+levels(data$runny_nose.factor)=c("Yes","No")
+levels(data$red_eyes.factor)=c("Yes","No")
+levels(data$poor_feeding.factor)=c("Yes","No")
+levels(data$dyspnea.factor)=c("Yes","No")
+levels(data$fast_breathing.factor)=c("Yes","No")
+levels(data$irritability.factor)=c("Yes","No")
+levels(data$other_symptom.factor)=c("Yes","No")
+levels(data$use_of_antibiotics_v2_v2.factor)=c("Yes","No","Unsure")
+levels(data$antibiotic_used_v2_v2___1.factor)=c("Unchecked","Checked")
+levels(data$antibiotic_used_v2_v2___2.factor)=c("Unchecked","Checked")
+levels(data$antibiotic_used_v2_v2___3.factor)=c("Unchecked","Checked")
+levels(data$antibiotic_used_v2_v2___4.factor)=c("Unchecked","Checked")
+levels(data$antibiotic_used_v2_v2___5.factor)=c("Unchecked","Checked")
+levels(data$antibiotic_used_v2_v2___6.factor)=c("Unchecked","Checked")
+levels(data$antibiotic_used_v2_v2___7.factor)=c("Unchecked","Checked")
+levels(data$antibiotic_used_v2_v2___8.factor)=c("Unchecked","Checked")
+levels(data$mode_of_delivery_v2_v2.factor)=c("Spontaneous Vaginal Delivery","Caeserian Section")
+levels(data$multiple_gestation_v2_v2.factor)=c("Yes","No","Not sure")
+levels(data$multiple_gestation_1_v2_v2.factor)=c("Twin","Triplet","Other (see below)")
+levels(data$medical_conditions_v2_v2.factor)=c("Yes","No","Unsure")
+levels(data$yes_med_condition_v2_v2___1.factor)=c("Unchecked","Checked")
+levels(data$yes_med_condition_v2_v2___2.factor)=c("Unchecked","Checked")
+levels(data$yes_med_condition_v2_v2___3.factor)=c("Unchecked","Checked")
+levels(data$yes_med_condition_v2_v2___4.factor)=c("Unchecked","Checked")
+levels(data$yes_med_condition_v2_v2___5.factor)=c("Unchecked","Checked")
+levels(data$yes_med_condition_v2_v2___6.factor)=c("Unchecked","Checked")
+levels(data$current_illness_and_medical_history_complete.factor)=c("Incomplete","Unverified","Complete")
+levels(data$hx_breastfeeding.factor)=c("Yes","No")
+levels(data$diet_v2_v2_v2.factor)=c("Breastfeeding only","Formula feeds only","Breastfeeding and Formula feeds","Breastfeeding and Solid diet","Solid diet")
+levels(data$rooms_in_household_v2_v2_v2.factor)=c("1","2","3","4","5","6")
+levels(data$sleep_with_person_v2_v2_v2.factor)=c("Yes","No")
+levels(data$sleep_with_person_yes_v2_v2_v2___1.factor)=c("Unchecked","Checked")
+levels(data$sleep_with_person_yes_v2_v2_v2___2.factor)=c("Unchecked","Checked")
+levels(data$sleep_with_person_yes_v2_v2_v2___3.factor)=c("Unchecked","Checked")
+levels(data$sleep_with_person_yes_v2_v2_v2___4.factor)=c("Unchecked","Checked")
+levels(data$sleep_with_person_yes_v2_v2_v2___5.factor)=c("Unchecked","Checked")
+levels(data$mosq_net_bed.factor)=c("Less than the number of beds/mats","One for every bed/mat","More than the number of beds/mats")
+levels(data$mosquito_net_v2_v2_v2.factor)=c("Yes","No","Unsure")
+levels(data$mother_s_education_v2_v2_v2.factor)=c("No education","Primary education","Secondary education","Vocational training","Some College/University","Completed College/University")
+levels(data$father_s_education_v2_v2_v2.factor)=c("No education","Primary education","Secondary education","Vocational training","Some College/University","Completed College/University")
+levels(data$household_member_smokes_v2_v2_v2.factor)=c("Yes","No","Unsure")
+levels(data$use_indoor_burning_stove_v2_v2_v2.factor)=c("Yes","No","Unsure")
+levels(data$sick_family_member_2_wks_v2_v2_v2.factor)=c("Yes","No")
+levels(data$sick_family_member_v2_v2_v2___1.factor)=c("Unchecked","Checked")
+levels(data$sick_family_member_v2_v2_v2___2.factor)=c("Unchecked","Checked")
+levels(data$sick_family_member_v2_v2_v2___3.factor)=c("Unchecked","Checked")
+levels(data$sick_family_member_v2_v2_v2___4.factor)=c("Unchecked","Checked")
+levels(data$dietnutritional_and_social_history_complete.factor)=c("Incomplete","Unverified","Complete")
+levels(data$flaring_accessory_muscle.factor)=c("Yes","No")
+levels(data$flaring_accessory_muscle1.factor)=c("None","Mild (Flaring only)","Moderate (Retraction also)","Severe (Accessory muscle use also)")
+levels(data$wheezing_on_exam.factor)=c("Yes","No")
+levels(data$wheezing_severity.factor)=c("None","End-expiratory, audible only with stethoscope","Full expiratory +/- inspiratory, audible only with stethoscope","Full expiratory and inspiratory, audible without stethoscope")
+levels(data$cxr_done_v2_v2_v2_v2.factor)=c("Yes","No","Unknown")
+levels(data$yes_cxr_v2_v2_v2_v2.factor)=c("Normal Chest X-ray","Abnormal Chest X-ray")
+levels(data$abnormal_cxr_v2_v2_v2_v2.factor)=c("Lobar consolidation","Diffuse consolidation","Multifocal consolidation","Peribronchial infiltrates","Other (Please specify)")
+levels(data$physical_exam_complete.factor)=c("Incomplete","Unverified","Complete")
+levels(data$icu_admission_v2_v2_v2_v2_v2.factor)=c("Yes","No")
+levels(data$lassa_ward_adm_v2_v2_v2_v2_v2.factor)=c("Yes","No")
+levels(data$o2_delivery_v2_v2_v2_v2_v2.factor)=c("Yes","No","Unknown")
+levels(data$hosp_antibiotic_use_v2_v2_v2_v2_v2.factor)=c("Yes","No","Unknwon")
+levels(data$antibiotics_used_v2___1.factor)=c("Unchecked","Checked")
+levels(data$antibiotics_used_v2___2.factor)=c("Unchecked","Checked")
+levels(data$antibiotics_used_v2___3.factor)=c("Unchecked","Checked")
+levels(data$antibiotics_used_v2___4.factor)=c("Unchecked","Checked")
+levels(data$antibiotics_used_v2___5.factor)=c("Unchecked","Checked")
+levels(data$antibiotics_used_v2___6.factor)=c("Unchecked","Checked")
+levels(data$antibiotics_used_v2___7.factor)=c("Unchecked","Checked")
+levels(data$antibiotics_used_v2___8.factor)=c("Unchecked","Checked")
+levels(data$antibiotics_used_v2___9.factor)=c("Unchecked","Checked")
+levels(data$antibiotics_used_v2___10.factor)=c("Unchecked","Checked")
+levels(data$antibiotics_used_v2___11.factor)=c("Unchecked","Checked")
+levels(data$antibiotics_used_v2___12.factor)=c("Unchecked","Checked")
+levels(data$antibiotics_used_v2___13.factor)=c("Unchecked","Checked")
+levels(data$antibiotics_used_v2___14.factor)=c("Unchecked","Checked")
+levels(data$antimalarials_hosp.factor)=c("Yes","No","Unknown")
+levels(data$antimalarials_used___1.factor)=c("Unchecked","Checked")
+levels(data$antimalarials_used___2.factor)=c("Unchecked","Checked")
+levels(data$antimalarials_used___3.factor)=c("Unchecked","Checked")
+levels(data$antimalarials_used___4.factor)=c("Unchecked","Checked")
+levels(data$antimalarials_used___5.factor)=c("Unchecked","Checked")
+levels(data$discharge_diagnosis_v2_v2_v2_v2_v2___1.factor)=c("Unchecked","Checked")
+levels(data$discharge_diagnosis_v2_v2_v2_v2_v2___2.factor)=c("Unchecked","Checked")
+levels(data$discharge_diagnosis_v2_v2_v2_v2_v2___3.factor)=c("Unchecked","Checked")
+levels(data$discharge_diagnosis_v2_v2_v2_v2_v2___4.factor)=c("Unchecked","Checked")
+levels(data$discharge_diagnosis_v2_v2_v2_v2_v2___5.factor)=c("Unchecked","Checked")
+levels(data$discharge_diagnosis_v2_v2_v2_v2_v2___6.factor)=c("Unchecked","Checked")
+levels(data$discharge_diagnosis_v2_v2_v2_v2_v2___7.factor)=c("Unchecked","Checked")
+levels(data$discharge_diagnosis_v2_v2_v2_v2_v2___8.factor)=c("Unchecked","Checked")
+levels(data$discharge_diagnosis_v2_v2_v2_v2_v2___9.factor)=c("Unchecked","Checked")
+levels(data$discharge_diagnosis_v2_v2_v2_v2_v2___10.factor)=c("Unchecked","Checked")
+levels(data$discharge_diagnosis_v2_v2_v2_v2_v2___11.factor)=c("Unchecked","Checked")
+levels(data$discharge_diagnosis_v2_v2_v2_v2_v2___12.factor)=c("Unchecked","Checked")
+levels(data$discharge_diagnosis_v2_v2_v2_v2_v2___13.factor)=c("Unchecked","Checked")
+levels(data$discharge_diagnosis_v2_v2_v2_v2_v2___14.factor)=c("Unchecked","Checked")
+levels(data$discharge_diagnosis_v2_v2_v2_v2_v2___15.factor)=c("Unchecked","Checked")
+levels(data$discharge_diagnosis_v2_v2_v2_v2_v2___16.factor)=c("Unchecked","Checked")
+levels(data$discharge_diagnosis_v2_v2_v2_v2_v2___17.factor)=c("Unchecked","Checked")
+levels(data$discharge_diagnosis_v2_v2_v2_v2_v2___18.factor)=c("Unchecked","Checked")
+levels(data$discharge_diagnosis_v2_v2_v2_v2_v2___19.factor)=c("Unchecked","Checked")
+levels(data$discharge_diagnosis_v2_v2_v2_v2_v2___20.factor)=c("Unchecked","Checked")
+levels(data$discharge_diagnosis_v2_v2_v2_v2_v2___21.factor)=c("Unchecked","Checked")
+levels(data$discharge_diagnosis_v2_v2_v2_v2_v2___22.factor)=c("Unchecked","Checked")
+levels(data$discharge_diagnosis_v2_v2_v2_v2_v2___23.factor)=c("Unchecked","Checked")
+levels(data$discharge_status_v2_v2_v2_v2_v2.factor)=c("Alive","Dead","Referred","Discharged against medical advice","Abscond")
+levels(data$medical_chart_review_complete.factor)=c("Incomplete","Unverified","Complete")
+levels(data$cbc_collected.factor)=c("Yes","No")
+levels(data$esr_collected.factor)=c("Yes","No")
+levels(data$sickiling_test_v2_v2_v2_v2_v2_v2.factor)=c("Performed","Not Performed")
+levels(data$sickling_result_v2_v2_v2_v2_v2_v2.factor)=c("Positive","Negative","Indeterminant")
+levels(data$malaria_smear_v2_v2_v2_v2_v2_v2.factor)=c("Performed","Not Performed")
+levels(data$widal_test_v2_v2_v2_v2_v2_v2.factor)=c("Performed","Not Performed")
+levels(data$rdt_malaria_v2_v2_v2_v2_v2_v2.factor)=c("Performed","Not Performed")
+levels(data$performed_malaria_result_v2_v2_v2_v2_v2_v2.factor)=c("Positive","Negative","Indeterminant")
+levels(data$hiv_rdt_v2_v2_v2_v2_v2_v2.factor)=c("Performed","Not performed")
+levels(data$performed_hiv_result_v2_v2_v2_v2_v2_v2.factor)=c("Reactive","Non-Reactive","Inconclusive/Equivocal")
+levels(data$lf_rdt_v2_v2_v2_v2_v2_v2.factor)=c("Performed","Not Performed")
+levels(data$lf_rdt_result_v2_v2_v2_v2_v2_v2.factor)=c("Positive","Negative","Indeterminant")
+levels(data$laboratory_results_complete.factor)=c("Incomplete","Unverified","Complete")
+```
+
+
+```{r eval=FALSE, include=FALSE}
+# Fixing dates
+
+data[data$study_id == 'SL_20_284', c('dob_v2', 'doa_v2_v2')] <- c('2020-06-03', '2021-05-30')
+data[data$study_id == 'SL_20_266', c('dob_v2', 'doa_v2_v2')] <- c('2020-12-25', '2021-05-13')
+data[data$study_id == 'SL_20_294', c('dob_v2', 'doa_v2_v2')] <- c('2020-09-24', '2021-06-05')
+data[data$study_id == 'SL_20_192', c('dob_v2', 'doa_v2_v2')] <- c('2020-01-13', '2021-03-05')
+data[data$study_id == 'SL_20_211', c('dob_v2', 'doa_v2_v2')] <- c('2020-09-24', '2021-03-26')
+data[data$study_id == 'SL_20_242', c('dob_v2', 'doa_v2_v2')] <- c('2020-04-15', '2021-04-18')
+data[data$study_id == 'SL_20_167', c('dob_v2', 'doa_v2_v2')] <- c('2019-08-11', '2021-02-11')
+
+data[data$study_id == 'SL_20_117', c('dob_v2', 'doa_v2_v2')] <- c('2020-11-25', '2020-12-15')
+data[data$study_id == 'SL_20_146', c('dob_v2', 'doa_v2_v2')] <- c('2020-06-13', '2021-01-20')
+data[data$study_id == 'SL_20_174', c('dob_v2', 'doa_v2_v2')] <- c('2020-06-13', '2021-02-12')
+data[data$study_id == 'SL_20_227', c('dob_v2', 'doa_v2_v2')] <- c('2020-10-16', '2021-03-31')
+data[data$study_id == 'SL_20_331', c('dob_v2', 'doa_v2_v2')] <- c('2020-05-10', '2021-06-26')
+data[data$study_id == 'SL_20_384', c('dob_v2', 'doa_v2_v2')] <- c('2020-10-11', '2021-07-22')
+data[data$study_id == 'SL_20_273', c('dob_v2', 'doa_v2_v2')] <- c('2020-12-30', '2021-05-23')
+data[data$study_id == 'SL_20_417', c('dob_v2', 'doa_v2_v2')] <- c('2020-10-30', '2021-08-20')
+data[data$study_id == 'SL_20_411', c('dob_v2', 'doa_v2_v2')] <- c('2020-06-16', '2021-08-14')
+
+```
+
+```{r}
+path <- 'C:/Users/amorigg1/OneDrive - VUMC/Documents/PRISM/RSV-Influenza'
+print_all <- FALSE
+
+data[data$study_id == 'SL_20_267',]$doa_v2_v2 <- '2021-05-20'
+
+dd1 <- data
+#dd1 <- read.csv(paste0(path, '/RespiratoryVirusPrev_DATA_2022-01-13_1348.csv'))
+dd2 <- read.csv(paste0(path, '/West Africa SL- Luminex_PCR results 1.7.2022.csv'))[,-1] %>%
+    mutate(Study.ID = ifelse(Study.ID == 'SS-20-142', 'SL-20_142', Study.ID),
+           id = gsub('-', '_', Study.ID),
+           id = tolower(id))
+dd2[dd2 == 'Mycoplasma Pneumo'] <- ''
+dd2[dd2 == 'Chlamydophila pneumo'] <- ''
+
+ids_virus <- apply(dd2[,c('Target.result.1', 'Target.result.2',
+                          'Target.result.3', 'Target.result.4')], 1, FUN = function(x) sum(x=='')<4)
+ids_virus <- dd2$id[ids_virus]
+
+dd1 <- dd1 %>%
+  mutate(id = gsub('-', '_', study_id),
+         id = tolower(id)) %>%
+  filter(id %in% dd2$id,
+         #id %in% ids_virus,
+         ymd(doa_v2_v2) >= ('2020-06-01'))
+```
+
+# {.tabset} 
+
+Preliminary analysis for the respiratory virus study
+
+<div id="quarterly-product" class="section level3">
+
+## Overview {.tabset}
+
+### Variables
+
+```{r include=FALSE}
+vars <- 
+  c(
+'Sex',
+'Age in months',
+'Mother’s education',
+'Number of household members',
+'Number in household aged < 5 years',
+'Other household member with ARI in 2 weeks prior to admission',
+'Smoker lives in the household',
+'Household uses an indoor burning stove',
+'Gestational period',
+'Premature, <37 weeks',
+'Mode of delivery',
+'Birthweight in grams',
+'Duration of breastfeeding in months',
+'Current weight in grams',
+'BMI',
+'Discharge status')
+
+vars %>% kable(., col.names = 'variables') %>% kable_styling()
+```
+
+Variables used (overall). In particular for
+
+- **HIV**, we used **hiv_aids.factor**;
+- **Tuberculosis**, we used **tb.factor**;
+- **Sickle Cell Disease**, we used **scd.factor**.
+
+**Number of patients in each discharge group:** Using the variable **discharge_status_v2_v2_v2_v2_v2.factor**
+
+```{r}
+table(dd1$discharge_status_v2_v2_v2_v2_v2.factor) %>%
+  kable(., col.names = c('Discharge', 'Frequency')) %>%
+  kable_styling()
+```
+
+The list below shows all (renamed) variables used throughout this document:
+
+```{r}
+as.data.frame(matrix(c(
+         'sex' 	,	 'sex_v2.factor'		,
+         'dob' 	,	 'dob_v2'		,
+         'date_crf_completed' 	,	 'date_crf_completed'		,
+         'doa' 	,	 'doa_v2_v2'		,
+         'estimated_age' 	,	 'estimated_age' 		,
+         'education_mother' 	,	 'mother_s_education_v2_v2_v2.factor'		,
+         'number_in_house' 	,	 'number_in_house_v2_v2_v2'		,
+         'number_in_house_less_5' 	,	 'no_5_yrs_v2_v2_v2'		,
+         'sick_2weeks' 	,	 'sick_family_member_2_wks_v2_v2_v2.factor'		,
+         'number_in_house_sick' 	,	 'yes_sick_household_member_v2_v2_v2'		,
+         'household_member_smokes' 	,	 'household_member_smokes_v2_v2_v2.factor'		,
+         'use_indoor_burning_stove' 	,	 'use_indoor_burning_stove_v2_v2_v2.factor'		,
+         'ga_weeks' 	,	 'ga_weeks_v2_v2'		,
+         'mode_of_delivery' 	,	 'mode_of_delivery_v2_v2.factor'		,
+         'malnutrition' 	,	 'sam.factor'		,
+         'birthweight' 	,	 'birth_weight_v2_v2'		,
+         'bf_duration' 	,	 'duration_bf'		,
+         'weight' 	,	 'current_adm_weight_v2_v2_v2_v2'		,
+         'height' 	,	 'current_height_length_v2_v2_v2_v2'		,
+         'flaring_accessory'  	,	 'flaring_accessory_muscle.factor' 		,
+         'flaring_accessory1' 	,	 'flaring_accessory_muscle1.factor'		,
+         'malaria_diagnosis' 	,	 'discharge_diagnosis_v2_v2_v2_v2_v2___9'		,
+         'malaria_smear_result' 	,	 'malaria_smear_result_v2_v2_v2_v2_v2_v2'		,
+         'malaria_RDT_result' 	,	 'performed_malaria_result_v2_v2_v2_v2_v2_v2.factor'		,
+         'antimalaria1' 	,	 'antimalarials_used___1.factor'		,
+         'antimalaria2' 	,	 'antimalarials_used___2.factor'		,
+         'antimalaria3' 	,	 'antimalarials_used___3.factor'		,
+         'antimalaria4' 	,	 'antimalarials_used___4.factor'		,
+         'antimalaria5' 	,	 'antimalarials_used___5.factor'		,
+         'sickling_result' 	,	 'sickling_result_v2_v2_v2_v2_v2_v2.factor'		,
+         'sickle_cell' 	,	 'scd.factor'		,
+         'diet' 	,	 'diet_v2_v2_v2.factor'		,
+         'antibiotic1' 	,	 'antibiotic_used_v2_v2___1.factor'		,
+         'antibiotic2' 	,	 'antibiotic_used_v2_v2___2.factor'		,
+         'antibiotic3' 	,	 'antibiotic_used_v2_v2___3.factor'		,
+         'antibiotic4' 	,	 'antibiotic_used_v2_v2___4.factor'		,
+         'antibiotic5' 	,	 'antibiotic_used_v2_v2___5.factor'		,
+         'antibiotic6' 	,	 'antibiotic_used_v2_v2___6.factor'		,
+         'antibiotic7' 	,	 'antibiotic_used_v2_v2___7.factor'		,
+         'antibiotic8' 	,	 'antibiotic_used_v2_v2___8.factor'		,
+         'antibiotic_other' 	,	 'other_antibiotic_used_v2_v2'		,
+         'discharge' 	,	 'discharge_status_v2_v2_v2_v2_v2.factor'		,
+         'resp_rate' 	,	 'resp_rate_v2_v2_v2_v2'		,
+         'o2_sat' 	,	 'o2_sats_adm_v2_v2_v2_v2'		,
+         'temperature' 	,	 'temp_at_admission_v2_v2_v2_v2'		,
+         'o2_delivered' 	,	 'o2_delivery_v2_v2_v2_v2_v2.factor'		,
+         'xray_abnormal' 	,	 'abnormal_cxr_v2_v2_v2_v2.factor'		,
+         'icu' 	,	 'icu_admission_v2_v2_v2_v2_v2.factor'		,
+         'dod' 	,	 'dod_v2_v2_v2_v2_v2'		,
+         'twin' 	,	 'multiple_gestation_1_v2_v2.factor'		,
+         'hiv_aids' 	,	 'hiv_aids.factor'		,
+         'tb' 	,	 'tb.factor'		,
+         'wheezing' 	,	 'wheezing.factor'		,
+         'pneumonia' 	,	 'pneumonia.factor'		,
+         'croup' 	,	 'croup.factor'		,
+         'cough' 	,	 'cough.factor'		,
+         'apnea' 	,	 'apnea.factor'		,
+         'dyspnea' 	,	 'dyspnea.factor'		,
+         'fast_breathing' 	,	 'fast_breathing.factor'		,
+         'nasal_congestion' 	,	 'nasal_congestion.factor'		,
+         'runny_nose' 	,	 'runny_nose.factor' 		,
+         'poor_feeding' 	,	 'poor_feeding.factor' 		,
+         'diarrhea' 	,	 'diarrhea.factor' 		,
+         'vomiting' 	,	 'vomiting.factor'		,
+         'asthma' 	,	 'asthma.factor'		,
+         'bronchiolitis' 	,	 'bronchiolitis.factor'		,
+         'bronchitis' 	,	 'bronchitis.factor'		,
+         'antibiotic_hosp' 	,	 'hosp_antibiotic_use_v2_v2_v2_v2_v2.factor'), ncol = 2, byrow = TRUE)) %>%
+           kable(., col.names = c('Variables', 'Name in dataset (REDCap)')) %>%
+           kable_styling()
+```
+
+```{r, echo = FALSE}
+data_bsl <- dd1 %>%
+  rename(sex = sex_v2.factor,
+         dob = dob_v2,
+         date_crf_completed = date_crf_completed,
+         doa = doa_v2_v2,
+         estimated_age = estimated_age, 
+         education_mother = mother_s_education_v2_v2_v2.factor,
+         number_in_house = number_in_house_v2_v2_v2,
+         number_in_house_less_5 = no_5_yrs_v2_v2_v2,
+         sick_2weeks = sick_family_member_2_wks_v2_v2_v2.factor,
+         number_in_house_sick = yes_sick_household_member_v2_v2_v2,
+         household_member_smokes = household_member_smokes_v2_v2_v2.factor,
+         use_indoor_burning_stove = use_indoor_burning_stove_v2_v2_v2.factor,
+         ga_weeks = ga_weeks_v2_v2,
+         mode_of_delivery = mode_of_delivery_v2_v2.factor,
+         malnutrition = sam.factor,
+         birthweight = birth_weight_v2_v2,
+         bf_duration = duration_bf,
+         weight = current_adm_weight_v2_v2_v2_v2,
+         height = current_height_length_v2_v2_v2_v2,
+         flaring_accessory  = flaring_accessory_muscle.factor, 
+         flaring_accessory1 = flaring_accessory_muscle1.factor,
+         malaria_diagnosis = discharge_diagnosis_v2_v2_v2_v2_v2___9,
+         malaria_smear_result = malaria_smear_result_v2_v2_v2_v2_v2_v2,
+         malaria_RDT_result = performed_malaria_result_v2_v2_v2_v2_v2_v2.factor,
+         antimalaria1 = antimalarials_used___1.factor,
+         antimalaria2 = antimalarials_used___2.factor,
+         antimalaria3 = antimalarials_used___3.factor,
+         antimalaria4 = antimalarials_used___4.factor,
+         antimalaria5 = antimalarials_used___5.factor,
+         sickling_result = sickling_result_v2_v2_v2_v2_v2_v2.factor,
+         sickle_cell = scd.factor,
+         diet = diet_v2_v2_v2.factor,
+         antibiotic1 = antibiotic_used_v2_v2___1.factor,
+         antibiotic2 = antibiotic_used_v2_v2___2.factor,
+         antibiotic3 = antibiotic_used_v2_v2___3.factor,
+         antibiotic4 = antibiotic_used_v2_v2___4.factor,
+         antibiotic5 = antibiotic_used_v2_v2___5.factor,
+         antibiotic6 = antibiotic_used_v2_v2___6.factor,
+         antibiotic7 = antibiotic_used_v2_v2___7.factor,
+         antibiotic8 = antibiotic_used_v2_v2___8.factor,
+         antibiotic_other = other_antibiotic_used_v2_v2,
+         discharge = discharge_status_v2_v2_v2_v2_v2.factor,
+         resp_rate = resp_rate_v2_v2_v2_v2,
+         o2_sat = o2_sats_adm_v2_v2_v2_v2,
+         temperature = temp_at_admission_v2_v2_v2_v2,
+         o2_delivered = o2_delivery_v2_v2_v2_v2_v2.factor,
+         xray_abnormal = abnormal_cxr_v2_v2_v2_v2.factor,
+         icu = icu_admission_v2_v2_v2_v2_v2.factor,
+         dod = dod_v2_v2_v2_v2_v2,
+         twin = multiple_gestation_1_v2_v2.factor) %>%
+  mutate(hiv_aids = hiv_aids.factor,
+         length_stay = as.numeric(ymd(dod) - ymd(doa))/7,
+         length_stay_days = as.numeric(ymd(dod) - ymd(doa)),
+         number_in_house_less_5_group = as.factor(number_in_house_less_5),
+         tb = tb.factor,
+         wheezing = wheezing.factor,
+         pneumonia = pneumonia.factor,
+         croup = croup.factor,
+         cough = cough.factor,
+         apnea = apnea.factor,
+         dyspnea = dyspnea.factor,
+         fast_breathing = fast_breathing.factor,
+         nasal_congestion = nasal_congestion.factor,
+         runny_nose = runny_nose.factor, 
+         poor_feeding = poor_feeding.factor, 
+         diarrhea = diarrhea.factor, 
+         vomiting = vomiting.factor,
+         asthma = asthma.factor,
+         bronchiolitis = bronchiolitis.factor,
+         bronchitis = bronchitis.factor,
+         antimalaria_any = ifelse(antimalarials_used___1 == 1 | antimalarials_used___2 == 1 |
+                                    antimalarials_used___3 == 1 | antimalarials_used___4 == 1 |
+                                    antimalarials_used___5 == 1, 'Yes', 'No'),
+         antibiotic_hosp = hosp_antibiotic_use_v2_v2_v2_v2_v2.factor,
+         malaria_diagnosis = as.factor(malaria_diagnosis),
+         malaria_diagnosis = ifelse(is.na(malaria_diagnosis), NA,
+                                    ifelse(malaria_diagnosis == 1, 'Positive', 'Negative')),
+         malaria_smear_result_greater_zero = ifelse(is.na(malaria_smear_result), NA,
+                                                    ifelse(malaria_smear_result > 0, 'Yes', 'No')),
+         bf_duration = gsub(' months', '', bf_duration),
+         bf_duration = gsub(' month', '', bf_duration),
+         bf_duration = gsub(' Months', '', bf_duration),
+         bf_duration = gsub(' Month', '', bf_duration),
+         bf_duration = ifelse(bf_duration == '', NA, bf_duration),
+         bf_duration = as.numeric(bf_duration),
+         antibiotic_other_type = antibiotic_other,
+         antibiotic_other = ifelse(is.na(antibiotic_other), 0,
+                                   ifelse(antibiotic_other == '', 0, 1)),
+         premature = ifelse(is.na(ga_weeks), NA,
+                            ifelse(ga_weeks < 37, 'Yes', 'No')),
+         premature = as.factor(premature),
+         age = ifelse(is.na(dob), NA,
+                      ifelse(is.na(doa), NA,
+                             as.numeric(ymd(doa) - ymd(dob))/30.4375)),
+         bmi = ifelse(is.na(height) | is.na(weight) | height == 0, NA, weight/(height/100)^2),
+         antibiotics_prior = ifelse(use_of_antibiotics_v2_v2.factor == 'Yes', 'Yes', 'No/Unsure'))
+```
+
+```{r}
+data_bsl$malaria_positive <- 'No'
+data_bsl$malaria_positive[data_bsl$malaria_smear_result_greater_zero == 'Yes' |
+                            data_bsl$malaria_RDT_result == 'Positive'] <- 'Yes'
+
+for (i in 1:ncol(data_bsl)) {
+  if (all(is.character(data_bsl[,i]))){
+    data_bsl[,i] <- tolower(data_bsl[,i])
+    data_bsl[,i] <- gsub(',', ' ', data_bsl[,i])
+    data_bsl[,i] <- gsub('and', ' ', data_bsl[,i])
+    data_bsl[,i] <- gsub('&', ' ', data_bsl[,i])
+    data_bsl[,i] <- trimws(data_bsl[,i])
+  }
+}
+```
+
+### Data issues
+
+- Wrong date of discharge
+
+```{r}
+data_bsl[data_bsl$study_id == 'sl_20_453',] %>% dplyr::select(study_id, dod) %>%
+  kable(., col.names = c('study_id', 'date of discharge')) %>% kable_styling()
+```
+
+- Negative (or 0) days of in hospital
+
+```{r}
+data_bsl %>% filter(length_stay_days <= 0) %>%
+  dplyr::select(study_id, doa, dod, length_stay_days) %>%
+  kable(., col.names = c('study_id', 'date of admission', 'date of discharge', 'length of stay (in days)')) %>%
+  kable_styling()
+
+data_bsl <- data_bsl %>% mutate(length_stay_days = ifelse(is.na(length_stay_days), NA, ifelse(length_stay_days <= 0, NA, length_stay_days)))
+```
+
+```{r labels}
+attr(data_bsl$sex, "label") <- "Sex"
+attr(data_bsl$dob, "label") <- "Date of birth"
+attr(data_bsl$doa, "label") <- "Date of Admission to Hospital"
+attr(data_bsl$age, "label") <- "Age in months"
+attr(data_bsl$education_mother, "label") <- "Mother’s education"
+attr(data_bsl$number_in_house, "label") <- "Number of household members"
+attr(data_bsl$number_in_house_less_5, "label") <- "Number in household aged < 5 years"
+attr(data_bsl$number_in_house_less_5_group, "label") <- "Number in household aged < 5 years (categorical)"
+attr(data_bsl$sick_2weeks, "label") <- "Other household member with ARI in 2 weeks prior to admission"
+attr(data_bsl$household_member_smokes, "label") <- "Smoker lives in the household" 
+attr(data_bsl$use_indoor_burning_stove, "label") <- "Household uses an indoor burning stove"
+attr(data_bsl$ga_weeks, "label") <- "Gestational period in weeks"
+attr(data_bsl$premature, "label") <- "Premature, <37 weeks"
+attr(data_bsl$mode_of_delivery, "label") <- "Cesarean section"
+attr(data_bsl$birthweight, "label") <- "Birthweight in kg"
+attr(data_bsl$bf_duration, "label") <- "Duration of breastfeeding in months"
+attr(data_bsl$height, "label") <- "Current height in cm"
+attr(data_bsl$weight, "label") <- "Current weight in kg"
+attr(data_bsl$bmi, "label") <- "BMI"
+attr(data_bsl$sickle_cell, "label") <- "Sickle Cell Disease"
+attr(data_bsl$diet, "label") <- "Current diet of the child"
+attr(data_bsl$malnutrition, 'label') <- "Severe Acute Malnutrition"
+attr(data_bsl$malaria_smear_result, "label") <- "Malaria Blood Smear"
+attr(data_bsl$malaria_smear_result_greater_zero, "label") <- "Malaria Blood Smear (> 0)"
+attr(data_bsl$malaria_RDT_result, "label") <- "Malaria RDT result"
+attr(data_bsl$malaria_positive, "label") <- "Positive for RDT or Malaria Blood Smear Result"
+attr(data_bsl$antimalaria1, "label") <- "Antimalaria 1"
+attr(data_bsl$antimalaria2, "label") <- "Antimalaria 2"
+attr(data_bsl$antimalaria3, "label") <- "Antimalaria 3"
+attr(data_bsl$antimalaria4, "label") <- "Antimalaria 4"
+attr(data_bsl$antimalaria5, "label") <- "Antimalaria 5"
+attr(data_bsl$antimalaria_any, "label") <- "Antimalaria (any)"
+attr(data_bsl$malaria_diagnosis, "label") <- "Malaria listed in the medical record for a Discharge diagnosis"
+attr(data_bsl$hiv_aids, "label") <- "HIV"
+attr(data_bsl$tb, "label") <- "Tuberculosis"
+attr(data_bsl$sickling_result, "label") <- "Sickling result"
+attr(data_bsl$scd, 'label')="Sickle Cell Disease"
+attr(data_bsl$antimalarials_hosp, "label") <- "Antimalarials given DURING hospitalization"
+attr(data_bsl$nasal_congestion, "label") <- "Nasal Congestion"
+attr(data_bsl$dyspnea, "label") <- "Shortness of breath"
+attr(data_bsl$flaring_accessory, "label") <- "Nasal Flaring/ Use of Accessory Muscle"
+attr(data_bsl$flaring_accessory1, "label") <- "Nasal Flaring/ Use of Accessory Muscle "
+attr(data_bsl$croup, "label")="Laryngo-tracheobronchitis"
+attr(data_bsl$antibiotic1, "label") <- "Antibiotics 1"
+attr(data_bsl$antibiotic2, "label") <- "Antibiotics 2"
+attr(data_bsl$antibiotic3, "label") <- "Antibiotics 3"
+attr(data_bsl$antibiotic4, "label") <- "Antibiotics 4"
+attr(data_bsl$antibiotic5, "label") <- "Antibiotics 5"
+attr(data_bsl$antibiotic6, "label") <- "Antibiotics 6"
+attr(data_bsl$antibiotic7, "label") <- "Antibiotics 7"
+attr(data_bsl$antibiotic8, "label") <- "Antibiotics 8"
+attr(data_bsl$antibiotic_other, "label") <- "Antibiotics other"
+attr(data_bsl$antibiotic_hosp, "label") <- "Antibiotics given during hospitalization"
+attr(data_bsl$discharge, "label") <- "Discharge status"
+attr(data_bsl$o2_sat, "label") <- "Oxygen saturation (%)"
+attr(data_bsl$wheezing, "label") <- "Wheezing"
+attr(data_bsl$runny_nose, "label") <- "Runny nose"
+attr(data_bsl$fast_breathing, "label") <- "Fast breathing"
+attr(data_bsl$diarrhea, "label") <- "Diarrhea"
+attr(data_bsl$asthma, "label") <- "Asthma"
+attr(data_bsl$bronchiolitis, "label") <- "Bronchiolitis"
+attr(data_bsl$bronchitis, "label") <- "Bronchitis"
+attr(data_bsl$diet, "label") <- "Diet"
+attr(data_bsl$apnea, "label") <- "Apnea"
+attr(data_bsl$cough, "label") <- "Cough"
+attr(data_bsl$pneumonia, "label") <- "Pneumonia"
+attr(data_bsl$poor_feeding, "label") <- "Poor feeding"
+attr(data_bsl$length_stay, 'label') <- 'Length of stay in hospital (in weeks)'
+attr(data_bsl$length_stay_days, 'label') <- 'Length of stay in hospital (in days)'
+attr(data_bsl$icu, 'label') <- 'ICU admission'
+attr(data_bsl$xray_abnormal, 'label') <- 'Abnormal x-ray'
+attr(data_bsl$temperature, 'label') <- 'Temperature'
+attr(data_bsl$o2_delivered, 'label') <- 'O2 delivered'
+attr(data_bsl$antibiotics_prior, 'label') <- 'Antibiotics received prior to admission'
+```
+
+```{r}
+data_bsl$age[which(data_bsl$age < 0)] = NA
+data_bsl$height[which(data_bsl$height < 0)] = NA
+data_bsl$weight[which(data_bsl$weight < 0)] = NA
+scores_all <- anthro_zscores(sex = ifelse(data_bsl$sex == 'Male', 'm', 'f'),
+               age = data_bsl$age,
+               is_age_in_month  = TRUE,
+               weight = data_bsl$weight,
+               lenhei = data_bsl$height)
+
+zwfl <- scores_all$zwfl
+zlen <- scores_all$zlen
+
+data_bsl <- data_bsl %>%
+  mutate(zbmi = scores_all$zbmi,
+         malnut_acute = ifelse(is.na(zwfl), NA,
+                               ifelse(zwfl <= -3, 'Severe',
+                                      ifelse(zwfl <= -2, 'Moderate', 'Normal'))),
+         global_acute = ifelse(is.na(zwfl), NA,
+                               ifelse(zwfl <= -2, 'Moderate/Severe', 'Normal')),
+         malnut_chronic = ifelse(is.na(zlen), NA,
+                                 ifelse(zlen <= -3, 'Severe',
+                                        ifelse(zlen <= -2, 'Moderate', 'Normal'))),
+         global_chronic = ifelse(is.na(zlen), NA,
+                                 ifelse(zlen <= -2, 'Moderate/Severe', 'Normal')))
+
+attr(data_bsl$zbmi, 'label') <- 'BMI-for-age z-score'
+attr(data_bsl$malnut_acute, 'label') <- 'Acute Malnutrition'
+attr(data_bsl$malnut_chronic, 'label') <- 'Chronic Malnutrition'
+attr(data_bsl$global_acute, 'label') <- 'Global Acute'
+attr(data_bsl$global_chronic, 'label') <- 'Global Chronic'
+
+data_anchor <- data_bsl
+```
+
+```{r}
+contvars <- c('age', 'ga_weeks', 'birthweight', 'bf_duration', 'weight', 'height',
+              'number_in_house',
+              #'number_in_house_less_5', 'number_in_house_sick',
+              #''household_member_smokes', 'household_member_smokes',
+              'malaria_smear_result')
+
+#data_anchor <- data_anchor
+#for (i in 1:ncol(data_anchor)){
+#  if (!(colnames(data_anchor)[i] %in% contvars)){
+#    data_anchor[,i] <- as.character(data_anchor[,i])
+#  }
+#}
+```
+
+
+
+
+```{r virus}
+data_anchor$id <- as.character(data_anchor$id)
+data_virus <- dd2 %>%
+  dplyr::select(-Study.ID) %>%
+  filter(id %in% data_anchor$id) %>%
+  left_join(data_anchor, by='id') %>%
+  rename(round1 = Target.result.1,
+         round2 = Target.result.2,
+         round3 = Target.result.3,
+         round4 = Target.result.4) %>%
+  mutate(round1 = ifelse(is.na(round1), NA,
+                         ifelse(round1 == '', NA,
+                                ifelse(round1 %in% c('CoV HKU1',
+                                                     'CoV OC43',
+                                                     'CoV NL63',
+                                                     'CoV 229E'), 'Endemic human coronavirus',
+                                       ifelse(round1 %in% c('PIV1',
+                                                            'PIV2',
+                                                            'PIV3',
+                                                            'PIV4A',
+                                                            'PIV4A ',
+                                                            'PIV4B'), 'Parainfluenza',
+                                              ifelse(round1 %in% c('FluA H3',
+                                                                   'FluA 2009 H1N1',
+                                                                   'FluB VIC', 'FluC'), 'Influenza',
+                                                     ifelse(round1 %in% c('RSVA', ' RSVA',
+                                                                          'RSVB'), 'RSV',
+                                                            round1)))))),
+         round2 = ifelse(is.na(round2), NA,
+                         ifelse(round2 == '', NA,
+                                ifelse(round2 %in% c('CoV HKU1',
+                                                     'CoV OC43',
+                                                     'CoV NL63',
+                                                     'CoV 229E'), 'Endemic human coronavirus',
+                                       ifelse(round2 %in% c('PIV1',
+                                                            'PIV2',
+                                                            'PIV3',
+                                                            'PIV4A',
+                                                            'PIV4A ',
+                                                            'PIV4B'), 'Parainfluenza',
+                                              ifelse(round2 %in% c('FluA H3',
+                                                                   'FluA 2009 H1N1',
+                                                                   'FluB VIC', 'FluC'), 'Influenza',
+                                                     ifelse(round2 %in% c('RSVA', ' RSVA',
+                                                                          'RSVB'), 'RSV',
+                                                            round2)))))),
+         round3 = ifelse(is.na(round3), NA,
+                         ifelse(round3 == '', NA,
+                                ifelse(round3 %in% c('CoV HKU1',
+                                                     'CoV OC43',
+                                                     'CoV NL63',
+                                                     'CoV 229E'), 'Endemic human coronavirus',
+                                       ifelse(round3 %in% c('PIV1',
+                                                            'PIV2',
+                                                            'PIV3',
+                                                            'PIV4A',
+                                                            'PIV4A ',
+                                                            'PIV4B'), 'Parainfluenza',
+                                              ifelse(round3 %in% c('FluA H3',
+                                                                   'FluA 2009 H1N1',
+                                                                   'FluB VIC', 'FluC'), 'Influenza',
+                                                     ifelse(round3 %in% c('RSVA', ' RSVA',
+                                                                          'RSVB'), 'RSV',
+                                                            round3)))))),
+         round4 = ifelse(is.na(round4), NA,
+                         ifelse(round4 == '', NA,
+                                ifelse(round4 %in% c('CoV HKU1',
+                                                     'CoV OC43',
+                                                     'CoV NL63',
+                                                     'CoV 229E'), 'Endemic human coronavirus',
+                                       ifelse(round4 %in% c('PIV1',
+                                                            'PIV2',
+                                                            'PIV3',
+                                                            'PIV4A',
+                                                            'PIV4A ',
+                                                            'PIV4B'), 'Parainfluenza',
+                                              ifelse(round4 %in% c('FluA H3',
+                                                                   'FluA 2009 H1N1',
+                                                                   'FluB VIC', 'FluC'), 'Influenza',
+                                                     ifelse(round4 %in% c('RSVA', ' RSVA',
+                                                                          'RSVB'), 'RSV',
+                                                            round4)))))))
+
+ids_no_virus <- apply(data_virus[,c('round1', 'round2', 'round3', 'round4')], 1, FUN = function(x) sum(is.na(x))==4)
+dd_no_virus  <- data.frame(id = data_virus$id[ids_no_virus], virus = 'No virus')
+
+ids_one_virus <- apply(data_virus[,c('round1', 'round2', 'round3', 'round4')], 1, FUN = function(x) sum(is.na(x))==3)
+ids_MoreThanOne_virus <- apply(data_virus[,c('round1', 'round2', 'round3', 'round4')], 1, FUN = function(x) sum(is.na(x)) < 3)
+
+data_virus_fig <- data_virus %>%
+  dplyr::select(round1, round2, round3, round4, doa, id) %>%
+  filter(!is.na(doa)) %>%
+  mutate(year = year(ymd(doa)),
+         month = month(ymd(doa)),
+         month = ifelse(is.na(month), NA,
+                        ifelse(month <= 9, paste0('0',month), month)),
+         ym = paste0(year, '/', month))
+
+data_virus_fig <- data_virus_fig %>%
+  pivot_longer(cols = c(round1, round2, round3, round4),
+               names_to = 'round',
+               values_to = 'virus') %>%
+  filter(!(virus %in% c('Chlamydia pneumonia', 'Mycoplasma pneumonia')), !is.na(virus))
+
+data_virus_figv2 <- as.data.frame(table(data_virus_fig$ym, data_virus_fig$virus))
+data_virus_figv2$Var1 <- as.character(data_virus_figv2$Var1)
+```
+
+### Demographics + clinic (all 777 patients)
+
+```{r}
+data_tabl <- data %>%
+  rename(sex = sex_v2.factor,
+         dob = dob_v2,
+         date_crf_completed = date_crf_completed,
+         doa = doa_v2_v2,
+         estimated_age = estimated_age, 
+         education_mother = mother_s_education_v2_v2_v2.factor,
+         number_in_house = number_in_house_v2_v2_v2,
+         number_in_house_less_5 = no_5_yrs_v2_v2_v2,
+         sick_2weeks = sick_family_member_2_wks_v2_v2_v2.factor,
+         number_in_house_sick = yes_sick_household_member_v2_v2_v2,
+         household_member_smokes = household_member_smokes_v2_v2_v2.factor,
+         use_indoor_burning_stove = use_indoor_burning_stove_v2_v2_v2.factor,
+         ga_weeks = ga_weeks_v2_v2,
+         mode_of_delivery = mode_of_delivery_v2_v2.factor,
+         malnutrition = sam.factor,
+         birthweight = birth_weight_v2_v2,
+         bf_duration = duration_bf,
+         weight = current_adm_weight_v2_v2_v2_v2,
+         height = current_height_length_v2_v2_v2_v2,
+         malaria_diagnosis = discharge_diagnosis_v2_v2_v2_v2_v2___9,
+         antimalaria1 = antimalarials_used___1.factor,
+         antimalaria2 = antimalarials_used___2.factor,
+         antimalaria3 = antimalarials_used___3.factor,
+         antimalaria4 = antimalarials_used___4.factor,
+         antimalaria5 = antimalarials_used___5.factor,
+         sickling_result = sickling_result_v2_v2_v2_v2_v2_v2.factor,
+         sickle_cell = scd.factor,
+         diet = diet_v2_v2_v2.factor,
+         antibiotic1 = antibiotic_used_v2_v2___1.factor,
+         antibiotic2 = antibiotic_used_v2_v2___2.factor,
+         antibiotic3 = antibiotic_used_v2_v2___3.factor,
+         antibiotic4 = antibiotic_used_v2_v2___4.factor,
+         antibiotic5 = antibiotic_used_v2_v2___5.factor,
+         antibiotic6 = antibiotic_used_v2_v2___6.factor,
+         antibiotic7 = antibiotic_used_v2_v2___7.factor,
+         antibiotic8 = antibiotic_used_v2_v2___8.factor,
+         antibiotic_other = other_antibiotic_used_v2_v2,
+         discharge = discharge_status_v2_v2_v2_v2_v2.factor,
+         resp_rate = resp_rate_v2_v2_v2_v2,
+         o2_sat = o2_sats_adm_v2_v2_v2_v2,
+         temperature = temp_at_admission_v2_v2_v2_v2,
+         o2_delivered = o2_delivery_v2_v2_v2_v2_v2.factor,
+         xray_abnormal = abnormal_cxr_v2_v2_v2_v2.factor,
+         icu = icu_admission_v2_v2_v2_v2_v2.factor,
+         dod = dod_v2_v2_v2_v2_v2,
+         twin = multiple_gestation_1_v2_v2.factor) %>%
+  mutate(hiv_aids = hiv_aids.factor,
+         malaria_smear_result = malaria_smear_result_v2_v2_v2_v2_v2_v2,
+         malaria_RDT_result = performed_malaria_result_v2_v2_v2_v2_v2_v2.factor,
+         length_stay = as.numeric(ymd(dod) - ymd(doa))/7,
+         length_stay_days = as.numeric(ymd(dod) - ymd(doa)),
+         number_in_house_less_5_group = as.factor(number_in_house_less_5),
+         tb = tb.factor,
+         wheezing = wheezing.factor,
+         pneumonia = pneumonia.factor,
+         croup = croup.factor,
+         cough = cough.factor,
+         apnea = apnea.factor,
+         dyspnea = dyspnea.factor,
+         fast_breathing = fast_breathing.factor,
+         nasal_congestion = nasal_congestion.factor,
+         runny_nose = runny_nose.factor, 
+         poor_feeding = poor_feeding.factor, 
+         diarrhea = diarrhea.factor, 
+         vomiting = vomiting.factor,
+         asthma = asthma.factor,
+         bronchiolitis = bronchiolitis.factor,
+         bronchitis = bronchitis.factor,
+         antimalaria_any = ifelse(antimalarials_used___1 == 1 | antimalarials_used___2 == 1 |
+                                    antimalarials_used___3 == 1 | antimalarials_used___4 == 1 |
+                                    antimalarials_used___5 == 1, 'Yes', 'No'),
+         antibiotic_hosp = hosp_antibiotic_use_v2_v2_v2_v2_v2.factor,
+         malaria_diagnosis = as.factor(malaria_diagnosis),
+         malaria_diagnosis = ifelse(is.na(malaria_diagnosis), NA,
+                                    ifelse(malaria_diagnosis == 1, 'Positive', 'Negative')),
+         malaria_smear_result_greater_zero = ifelse(is.na(malaria_smear_result), NA,
+                                                    ifelse(malaria_smear_result > 0, 'Yes', 'No')),
+         bf_duration = gsub(' months', '', bf_duration),
+         bf_duration = gsub(' month', '', bf_duration),
+         bf_duration = gsub(' Months', '', bf_duration),
+         bf_duration = gsub(' Month', '', bf_duration),
+         bf_duration = ifelse(bf_duration == '', NA, bf_duration),
+         bf_duration = as.numeric(bf_duration),
+         antibiotic_other_type = antibiotic_other,
+         antibiotic_other = ifelse(is.na(antibiotic_other), 0,
+                                   ifelse(antibiotic_other == '', 0, 1)),
+         premature = ifelse(is.na(ga_weeks), NA,
+                            ifelse(ga_weeks < 37, 'Yes', 'No')),
+         premature = as.factor(premature),
+         age = ifelse(is.na(dob), NA,
+                      ifelse(is.na(doa), NA,
+                             as.numeric(ymd(doa) - ymd(dob))/30.4375)),
+         bmi = ifelse(is.na(height) | is.na(weight) | height == 0, NA, weight/(height/100)^2),
+         antibiotics_prior = ifelse(use_of_antibiotics_v2_v2.factor == 'Yes', 'Yes', 'No/Unsure'))
+data_tabl$malaria_positive <- 'No'
+data_tabl$malaria_positive[data_tabl$malaria_smear_result_greater_zero == 'Yes' |
+                             data_tabl$malaria_RDT_result == 'Positive'] <- 'Yes'
+data_tabl$age[which(data_tabl$age < 0)] = NA
+data_tabl$height[which(data_tabl$height < 0)] = NA
+data_tabl$weight[which(data_tabl$weight < 0)] = NA
+scores_all <- anthro_zscores(sex = ifelse(data_tabl$sex == 'Male', 'm', 'f'),
+               age = data_tabl$age,
+               is_age_in_month  = TRUE,
+               weight = data_tabl$weight,
+               lenhei = data_tabl$height)
+
+zwfl <- scores_all$zwfl
+zlen <- scores_all$zlen
+data_tabl <- data_tabl %>%
+  mutate(zbmi = scores_all$zbmi,
+         malnut_acute = ifelse(is.na(zwfl), NA,
+                               ifelse(zwfl <= -3, 'Severe',
+                                      ifelse(zwfl <= -2, 'Moderate', 'Normal'))),
+         global_acute = ifelse(is.na(zwfl), NA,
+                               ifelse(zwfl <= -2, 'Moderate/Severe', 'Normal')),
+         malnut_chronic = ifelse(is.na(zlen), NA,
+                                 ifelse(zlen <= -3, 'Severe',
+                                        ifelse(zlen <= -2, 'Moderate', 'Normal'))),
+         global_chronic = ifelse(is.na(zlen), NA,
+                                 ifelse(zlen <= -2, 'Moderate/Severe', 'Normal')))
+attr(data_tabl$zbmi, 'label') <- 'BMI-for-age z-score'
+attr(data_tabl$malaria_positive, "label") <- "Positive for RDT or Malaria Blood Smear Result"
+
+names(labels(data_tabl))
+
+tab1_dem_all <- descrTable(formula = ~ sex + age + education_mother +
+                             number_in_house + number_in_house_less_5 + 
+                             number_in_house_less_5_group + sick_2weeks +
+                             household_member_smokes + use_indoor_burning_stove +
+                             premature + mode_of_delivery + birthweight +
+                             bf_duration + weight + bmi + zbmi +
+                             malnut_acute + global_acute + malnut_chronic + global_chronic +
+                             malaria_diagnosis + malaria_RDT_result + malaria_smear_result +
+                             malaria_smear_result_greater_zero + malaria_positive +
+                             antimalaria_any + hiv_aids + tb + sickle_cell + antibiotic_hosp +
+                             antibiotics_prior + discharge + length_stay + length_stay_days +
+                             cough.factor + fast_breathing.factor +
+                             flaring_accessory_muscle.factor + flaring_accessory_muscle1.factor + wheezing.factor +
+                             runny_nose.factor + nasal_congestion.factor + earache.factor +
+                             antimalarials_hosp.factor + rdt_malaria_v2_v2_v2_v2_v2_v2.factor + malaria_smear_v2_v2_v2_v2_v2_v2.factor +
+                             poor_feeding.factor + vomiting.factor + diarrhea.factor +
+                             fatigue.factor + seizures.factor + irritability.factor + skin_rash.factor +
+                             hiv_aids.factor + tb.factor,
+                           data = data_tabl, method=2)
+export2md(tab1_dem_all)
+
+if (print_all)
+export2word(tab1_dem_all, file = 'C:/Users/amorigg1/OneDrive - VUMC/Documents/PRISM/RSV-Influenza/tables/table1_anchor.docx')
+```
+
+## Anchor paper {.tabset}
+
+### Table 1 {.tabset}
+
+#### Demographics + clinic
+
+```{r}
+tab1_dem <- descrTable(formula = ~ sex + age + education_mother +
+                         father_s_education_v2_v2_v2.factor +
+                         number_in_house + number_in_house_less_5 + 
+                         number_in_house_less_5_group + sick_2weeks +
+                         household_member_smokes + use_indoor_burning_stove +
+                         premature + mode_of_delivery + birthweight +
+                         bf_duration + weight + bmi + zbmi +
+                         malnut_acute + global_acute + malnut_chronic + global_chronic +
+                         malaria_diagnosis + malaria_RDT_result + malaria_smear_result +
+                         malaria_smear_result_greater_zero + malaria_positive +
+                         antimalaria_any + hiv_aids + tb + sickle_cell + antibiotic_hosp +
+                         antibiotics_prior + discharge + length_stay + length_stay_days,
+                       data = data_anchor, method=2)
+export2md(tab1_dem)
+
+if (print_all)
+export2word(tab1_dem, file = 'C:/Users/amorigg1/OneDrive - VUMC/Documents/PRISM/RSV-Influenza/tables/table1_anchor.docx')
+```
+
+#### Virus
+
+- Number of patients with no virus detected: `r sum(ids_no_virus)`
+
+- Number of patients with only 1 virus detected: `r sum(ids_one_virus)`
+
+- Number of patients with more than 1 virus detected: `r sum(ids_MoreThanOne_virus)`
+
+
+```{r}
+data_virus_tab <- data_virus_fig %>%
+  dplyr::select(id, virus) %>%
+  bind_rows(dd_no_virus)
+
+tab1_virus <- descrTable(formula = ~ virus, data = data_virus_tab, max.xlev = 15)
+export2md(tab1_virus)
+
+if (print_all)
+export2word(tab1_virus, file = 'C:/Users/amorigg1/OneDrive - VUMC/Documents/PRISM/RSV-Influenza/tables/table1_virus_anchor.docx')
+```
+
+#### Table (virus vs no virus)
+
+```{r}
+data_anchor_virus_tab2 <- data_anchor %>%
+  left_join(data_virus_tab %>% group_by(id) %>% mutate(any_virus = 1*any(virus == 'No virus')) %>%
+              dplyr::select(id, any_virus) %>% slice(1) %>% ungroup(), by='id') %>%
+  mutate(any_virus = ifelse(any_virus == 0, 'at least 1 virus', 'no virus'))
+
+tab1_dem_virus1 <- descrTable(formula = any_virus ~ sex + age + education_mother +
+                         number_in_house + number_in_house_less_5 + 
+                         number_in_house_less_5_group + sick_2weeks +
+                         household_member_smokes + use_indoor_burning_stove +
+                         premature + mode_of_delivery + birthweight +
+                         bf_duration + hx_breastfeeding.factor +
+                           weight + bmi + zbmi + malnut_acute +
+                           global_acute + malnut_chronic + global_chronic +
+                         malaria_diagnosis + malaria_RDT_result + malaria_smear_result +
+                         malaria_smear_result_greater_zero + malaria_positive +
+                         antimalaria_any + hiv_aids + tb + sickle_cell + antibiotic_hosp +
+                         antibiotics_prior + discharge + length_stay + length_stay_days,
+                       data = data_anchor_virus_tab2, method=2)
+export2md(tab1_dem_virus1)
+```
+
+### Figures {.tabset}
+
+#### Stacked
+
+```{r}
+ggplot(data_virus_figv2, aes(x = Var1, y = Freq, fill = Var2)) +
+  geom_bar(stat="identity") +
+  scale_fill_brewer(palette="Paired") +
+  theme_bw() +
+  xlab('') +
+  ylab('Frequency') +
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=1),
+        #legend.position="top",
+        legend.title = element_blank())
+
+if (print_all)
+ggsave('C:/Users/amorigg1/OneDrive - VUMC/Documents/PRISM/RSV-Influenza/figures/fig_anchor_1.png', width = 8, height = 8)
+```
+
+#### By side
+
+```{r}
+ggplot(data_virus_figv2, aes(x = Var1, y = Freq, fill = Var2)) +
+  geom_bar(stat="identity", position='dodge') +
+  scale_fill_brewer(palette="Paired") +
+  theme_bw() +
+  xlab('') +
+  ylab('Frequency') +
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=1),
+        #legend.position="top",
+        legend.title = element_blank())
+
+if (print_all)
+ggsave('C:/Users/amorigg1/OneDrive - VUMC/Documents/PRISM/RSV-Influenza/figures/fig_anchor_2.png', width = 8, height = 8)
+```
+
+#### Individual
+
+```{r}
+ggplot(data_virus_figv2, aes(x = as.factor(Var1), y = Freq, fill = Var2)) +
+  geom_bar(stat="identity", position='dodge') +
+  scale_fill_brewer(palette="Paired") +
+  scale_x_discrete(breaks = c("2020/10", "2020/12", "2021/02", "2021/04", "2021/06", "2021/08", "2021/10"),
+                   labels = c('Oct/20', 'Dec/20', 'Feb/21', 'Apr/21', 'Jun/21', 'Aug/21', 'Oct/21')) +
+  theme_bw() +
+  xlab('') +
+  ylab('Frequency') +
+  facet_wrap(~Var2, scale='free_y', nrow=4) +
+#  geom_smooth(data=data_virus_figv2, aes(x=as.numeric(as.factor(Var1)), y=Freq),
+#              colour = "black", size = 1.1, se = FALSE, span= 0.75) +
+  theme(legend.position = 'none',
+       # axis.text.x = element_text(angle = 0, vjust = 1, hjust=1),
+        axis.text=element_text(size=11),
+        axis.title=element_text(size=12),
+        strip.text = element_text(size=11))
+
+if (print_all)
+ggsave('C:/Users/amorigg1/OneDrive - VUMC/Documents/PRISM/RSV-Influenza/figures/fig_anchor_3.png', width = 8, height = 8)
+```
+
+
+
+```{r}
+data_virus_figv2_perc <- data_virus_figv2 %>%
+  group_by(Var1) %>%
+  mutate(total = sum(Freq)) %>%
+  mutate(Perc = 100*(Freq/total)) %>%
+  ungroup()
+
+fig_review <- ggplot(data_virus_figv2_perc, aes(x = as.factor(Var1), y = Perc, fill = Var2)) +
+  geom_bar(stat="identity", position='dodge') +
+  scale_fill_brewer(palette="Paired") +
+#  scale_x_discrete(breaks = c("2020/10", "2020/11", "2020/12", "2021/01",
+#                              "2021/02", "2021/03", "2021/04", "2021/05",
+#                              "2021/06", "2021/07", "2021/08", "2021/09", "2021/10"),
+#                   labels = c('Oct/20', '', 'Dec/20', '', 'Feb/21', '', 'Apr/21',
+#                              '', 'Jun/21', '', 'Aug/21', '', 'Oct/21')) +
+  scale_x_discrete(breaks = c("2020/10","2020/12",
+                              "2021/02", "2021/04",
+                              "2021/06", "2021/08", "2021/10"),
+                   labels = c('Oct/20', 'Dec/20', 'Feb/21',  'Apr/21',
+                              'Jun/21', 'Aug/21', 'Oct/21')) +
+  theme_bw() +
+  xlab('') +
+  ylab('Monthly proportion of viruses detected (%)') +
+  facet_wrap(~Var2, scale='free_y', nrow=4) +
+#  geom_smooth(data=data_virus_figv2, aes(x=as.numeric(as.factor(Var1)), y=Freq),
+#              colour = "black", size = 1.1, se = FALSE, span= 0.75) +
+  theme(legend.position = 'none',
+        #axis.text.x = element_text(angle = 45, vjust = .5, hjust=0.5),
+        axis.text=element_text(size=11),
+        axis.title=element_text(size=12),
+        strip.text = element_text(size=11),
+        panel.grid.major = element_line(color = '#F0F0F0', linetype = "dashed"),
+        ) #+
+#  geom_vline(xintercept=c("2020/10", "2020/11", "2020/12", "2021/01",
+#                          "2021/02", "2021/03", "2021/04", "2021/05",
+#                          "2021/06", "2021/07", "2021/08", "2021/09",
+#                          "2021/10"), colour = "#F0F0F0")
+#  geom_vline(xintercept="2020/11", colour = "#F0F0F0")
+
+fig_review
+
+if (print_all)
+ggsave(filename = 'C:/Users/amorigg1/OneDrive - VUMC/Documents/PRISM/RSV-Influenza/figures/fig_anchor_3c.png',
+       plot = fig_review, width = 12, height = 8)
+```
+
+
+#### Viruses
+
+```{r, fig.width=20, fig.height=10}
+dd2b <- dd2 %>%
+  dplyr::select(-Study.ID) %>%
+  rename(round1 = Target.result.1,
+         round2 = Target.result.2,
+         round3 = Target.result.3,
+         round4 = Target.result.4) %>%
+  mutate(round1 = ifelse(is.na(round1), NA,
+                         ifelse(round1 == '', NA,
+                                ifelse(round1 %in% c('CoV HKU1',
+                                                     'CoV OC43',
+                                                     'CoV NL63',
+                                                     'CoV 229E'), 'Endemic human coronavirus',
+                                       ifelse(round1 %in% c('PIV1',
+                                                            'PIV2',
+                                                            'PIV3',
+                                                            'PIV4A',
+                                                            'PIV4A ',
+                                                            'PIV4B'), 'Parainfluenza',
+                                              ifelse(round1 %in% c('FluA H3',
+                                                                   'FluA 2009 H1N1',
+                                                                   'FluB VIC', 'FluC'), 'Influenza',
+                                                     ifelse(round1 %in% c('RSVA', ' RSVA',
+                                                                          'RSVB'), 'RSV',
+                                                            round1)))))),
+         round2 = ifelse(is.na(round2), NA,
+                         ifelse(round2 == '', NA,
+                                ifelse(round2 %in% c('CoV HKU1',
+                                                     'CoV OC43',
+                                                     'CoV NL63',
+                                                     'CoV 229E'), 'Endemic human coronavirus',
+                                       ifelse(round2 %in% c('PIV1',
+                                                            'PIV2',
+                                                            'PIV3',
+                                                            'PIV4A',
+                                                            'PIV4A ',
+                                                            'PIV4B'), 'Parainfluenza',
+                                              ifelse(round2 %in% c('FluA H3',
+                                                                   'FluA 2009 H1N1',
+                                                                   'FluB VIC', 'FluC'), 'Influenza',
+                                                     ifelse(round2 %in% c('RSVA', ' RSVA',
+                                                                          'RSVB'), 'RSV',
+                                                            round2)))))),
+         round3 = ifelse(is.na(round3), NA,
+                         ifelse(round3 == '', NA,
+                                ifelse(round3 %in% c('CoV HKU1',
+                                                     'CoV OC43',
+                                                     'CoV NL63',
+                                                     'CoV 229E'), 'Endemic human coronavirus',
+                                       ifelse(round3 %in% c('PIV1',
+                                                            'PIV2',
+                                                            'PIV3',
+                                                            'PIV4A',
+                                                            'PIV4A ',
+                                                            'PIV4B'), 'Parainfluenza',
+                                              ifelse(round3 %in% c('FluA H3',
+                                                                   'FluA 2009 H1N1',
+                                                                   'FluB VIC', 'FluC'), 'Influenza',
+                                                     ifelse(round3 %in% c('RSVA', ' RSVA',
+                                                                          'RSVB'), 'RSV',
+                                                            round3)))))),
+         round4 = ifelse(is.na(round4), NA,
+                         ifelse(round4 == '', NA,
+                                ifelse(round4 %in% c('CoV HKU1',
+                                                     'CoV OC43',
+                                                     'CoV NL63',
+                                                     'CoV 229E'), 'Endemic human coronavirus',
+                                       ifelse(round4 %in% c('PIV1',
+                                                            'PIV2',
+                                                            'PIV3',
+                                                            'PIV4A',
+                                                            'PIV4A ',
+                                                            'PIV4B'), 'Parainfluenza',
+                                              ifelse(round4 %in% c('FluA H3',
+                                                                   'FluA 2009 H1N1',
+                                                                   'FluB VIC', 'FluC'), 'Influenza',
+                                                     ifelse(round4 %in% c('RSVA', ' RSVA',
+                                                                          'RSVB'), 'RSV',
+                                                            round4)))))))
+
+
+
+d1 <- dd2b %>%
+  rename(pid = id,
+         b1 = round1) %>%
+  dplyr::select(pid, b1)
+d2 <- dd2b %>%
+  rename(pid = id,
+         b1 = round2) %>%
+  dplyr::select(pid, b1)
+d3 <- dd2b %>%
+  rename(pid = id,
+         b1 = round3) %>%
+  dplyr::select(pid, b1)
+
+dt <- bind_rows(d1, d2, d3) %>%
+  filter(b1 != '') 
+
+
+
+
+
+dt <- dd2b %>%
+  rename(c1 = round1,
+         c2 = round2,
+         c3 = round3,
+         c4 = round4) %>%
+  dplyr::select(c1, c2, c3, c4)
+dt[which(dt[,1] == 'SARS-CoV-2'),1] <- 'Sars-CoV-2'
+dt[which(dt[,2] == 'SARS-CoV-2'),2] <- 'Sars-CoV-2'
+dt[which(dt[,3] == 'SARS-CoV-2'),3] <- 'Sars-CoV-2'
+dt[which(dt[,4] == 'SARS-CoV-2'),4] <- 'Sars-CoV-2'
+
+dt$rsv_col <- dt$rhi_col <- dt$ade_col <- dt$boc_col <- dt$hum_col <- dt$cov_col <- dt$flu_col <- dt$sar_col <- dt$piv_col <- NA
+
+dt$rsv_col <- apply(dt, 1, FUN = function(x) any(grep('RSV',x)))
+dt$rhi_col <- apply(dt, 1, FUN = function(x) any(grep('Rhinovirus/Enterovirus',x)))
+dt$ade_col <- apply(dt, 1, FUN = function(x) any(grep('Adenovirus',x)))
+dt$boc_col <- apply(dt, 1, FUN = function(x) any(grep('Bocavirus',x)))
+dt$hum_col <- apply(dt, 1, FUN = function(x) any(grep('Metapneumovirus',x)))
+dt$cov_col <- apply(dt, 1, FUN = function(x) any(grep('Endemic human coronavirus',x)))
+dt$flu_col <- apply(dt, 1, FUN = function(x) any(grep('Influenza',x)))
+dt$sar_col <- apply(dt, 1, FUN = function(x) any(grep('Sars-CoV-2',x)))
+dt$piv_col <- apply(dt, 1, FUN = function(x) any(grep('Parainfluenza',x)))
+
+## RSV
+rsv <- cbind(dt[dt$rsv_col,1], dt[dt$rsv_col,2], dt[dt$rsv_col,3], dt[dt$rsv_col,4])
+rsv <- cbind(gsub('RSV', NA, rsv[,1]), gsub('RSV', NA, rsv[,2]), gsub('RSV', NA, rsv[,3]), gsub('RSV', NA, rsv[,4]))
+rsv <- as.data.frame(rsv)
+rsv$type <- 'RSV'
+rsv$type[apply(rsv[,1:4], 1, FUN = function(x) sum(!is.na(x)) == 2)] <- '> 1 co-infection'
+rsv_uniq_cols <- rsv[apply(rsv[,1:4], 1, FUN = function(x) sum(!is.na(x)) == 1),]
+rsv_uniq <- apply(rsv_uniq_cols[,1:4], 1, FUN = function(x) x[!is.na(x)])
+rsv$type[apply(rsv[,1:3], 1, FUN = function(x) sum(!is.na(x)) == 1)] <- rsv_uniq
+
+## Parainfluenza
+para <- cbind(dt[dt$piv_col,1], dt[dt$piv_col,2], dt[dt$piv_col,3], dt[dt$piv_col,4])
+para <- cbind(gsub('Parainfluenza', NA, para[,1]), gsub('Parainfluenza', NA, para[,2]), gsub('Parainfluenza', NA, para[,3]), gsub('Parainfluenza', NA, para[,4]))
+para <- as.data.frame(para)
+para$type <- 'Parainfluenza'
+para$type[apply(para[,1:4], 1, FUN = function(x) sum(!is.na(x)) == 2)] <- '> 1 co-infection'
+para_uniq_cols <- para[apply(para[,1:4], 1, FUN = function(x) sum(!is.na(x)) == 1),]
+para_uniq <- apply(para_uniq_cols[,1:4], 1, FUN = function(x) x[!is.na(x)])
+para$type[apply(para[,1:4], 1, FUN = function(x) sum(!is.na(x)) == 1)] <- para_uniq
+
+## Rhinovirus/Enterovirus
+rhi <- cbind(dt[dt$rhi_col,1], dt[dt$rhi_col,2], dt[dt$rhi_col,3], dt[dt$rhi_col,4])
+rhi <- cbind(gsub('Rhinovirus/Enterovirus', NA, rhi[,1]), gsub('Rhinovirus/Enterovirus', NA, rhi[,2]), gsub('Rhinovirus/Enterovirus', NA, rhi[,3]), gsub('Rhinovirus/Enterovirus', NA, rhi[,4]))
+rhi <- as.data.frame(rhi)
+rhi$type <- 'Rhinovirus/Enterovirus'
+rhi$type[apply(rhi[,1:4], 1, FUN = function(x) sum(!is.na(x)) == 2)] <- '> 1 co-infection'
+rhi_uniq_cols <- rhi[apply(rhi[,1:4], 1, FUN = function(x) sum(!is.na(x)) == 1),]
+rhi_uniq <- apply(rhi_uniq_cols[,1:4], 1, FUN = function(x) x[!is.na(x)])
+rhi$type[apply(rhi[,1:4], 1, FUN = function(x) sum(!is.na(x)) == 1)] <- rhi_uniq
+
+## Adenovirus
+ade <- cbind(dt[dt$ade_col,1], dt[dt$ade_col,2], dt[dt$ade_col,3], dt[dt$ade_col,4])
+ade <- cbind(gsub('Adenovirus', NA, ade[,1]), gsub('Adenovirus', NA, ade[,2]), gsub('Adenovirus', NA, ade[,3]), gsub('Adenovirus', NA, ade[,4]))
+ade <- as.data.frame(ade)
+ade$type <- 'Adenovirus'
+ade$type[apply(ade[,1:4], 1, FUN = function(x) sum(!is.na(x)) == 2)] <- '> 1 co-infection'
+ade_uniq_cols <- ade[apply(ade[,1:4], 1, FUN = function(x) sum(!is.na(x)) == 1),]
+ade_uniq <- apply(ade_uniq_cols[,1:4], 1, FUN = function(x) x[!is.na(x)])
+ade$type[apply(ade[,1:4], 1, FUN = function(x) sum(!is.na(x)) == 1)] <- ade_uniq
+
+## Bocavirus
+boca <- cbind(dt[dt$boc_col,1], dt[dt$boc_col,2], dt[dt$boc_col,3], dt[dt$boc_col,4])
+boca <- cbind(gsub('Bocavirus', NA, boca[,1]), gsub('Bocavirus', NA, boca[,2]), gsub('Bocavirus', NA, boca[,3]), gsub('Bocavirus', NA, boca[,4]))
+boca <- as.data.frame(boca)
+boca$type <- 'Bocavirus'
+boca$type[apply(boca[,1:4], 1, FUN = function(x) sum(!is.na(x)) == 2)] <- '> 1 co-infection'
+boca_uniq_cols <- boca[apply(boca[,1:4], 1, FUN = function(x) sum(!is.na(x)) == 1),]
+boca_uniq <- apply(boca_uniq_cols[,1:4], 1, FUN = function(x) x[!is.na(x)])
+boca$type[apply(boca[,1:4], 1, FUN = function(x) sum(!is.na(x)) == 1)] <- boca_uniq
+
+## Human Metapneumovirus
+metap <- cbind(dt[dt$hum_col,1], dt[dt$hum_col,2], dt[dt$hum_col,3], dt[dt$hum_col,4])
+metap <- cbind(gsub('Human Metapneumovirus', NA, metap[,1]), gsub('Human Metapneumovirus', NA, metap[,2]), gsub('Human Metapneumovirus', NA, metap[,3]), gsub('Human Metapneumovirus', NA, metap[,4]))
+metap <- as.data.frame(metap)
+metap$type <- 'Human Metapneumovirus'
+metap$type[apply(metap[,1:4], 1, FUN = function(x) sum(!is.na(x)) == 2)] <- '> 1 co-infection'
+metap_uniq_cols <- metap[apply(metap[,1:4], 1, FUN = function(x) sum(!is.na(x)) == 1),]
+metap_uniq <- apply(metap_uniq_cols[,1:4], 1, FUN = function(x) x[!is.na(x)])
+metap$type[apply(metap[,1:4], 1, FUN = function(x) sum(!is.na(x)) == 1)] <- metap_uniq
+
+## Sars-CoV-2
+sarscov <- cbind(dt[dt$sar_col,1], dt[dt$sar_col,2], dt[dt$sar_col,3], dt[dt$sar_col,4])
+sarscov <- cbind(gsub('Sars-CoV-2', NA, sarscov[,1]), gsub('Sars-CoV-2', NA, sarscov[,2]), gsub('Sars-CoV-2', NA, sarscov[,3]), gsub('Sars-CoV-2', NA, sarscov[,4]))
+sarscov <- as.data.frame(sarscov)
+sarscov$type <- 'Sars-CoV-2'
+sarscov$type[apply(sarscov[,1:4], 1, FUN = function(x) sum(!is.na(x)) == 2)] <- '> 1 co-infection'
+sarscov_uniq_cols <- sarscov[apply(sarscov[,1:4], 1, FUN = function(x) sum(!is.na(x)) == 1),]
+sarscov_uniq <- apply(sarscov_uniq_cols[,1:4], 1, FUN = function(x) x[!is.na(x)])
+sarscov$type[apply(sarscov[,1:4], 1, FUN = function(x) sum(!is.na(x)) == 1)] <- sarscov_uniq
+
+## Influenza
+infl <- cbind(dt[dt$flu_col,1], dt[dt$flu_col,2], dt[dt$flu_col,3], dt[dt$flu_col,4])
+infl <- cbind(gsub('Influenza', NA, infl[,1]), gsub('Influenza', NA, infl[,2]), gsub('Influenza', NA, infl[,3]), gsub('Influenza', NA, infl[,4]))
+infl <- as.data.frame(infl)
+infl$type <- 'Influenza'
+infl$type[apply(infl[,1:4], 1, FUN = function(x) sum(!is.na(x)) == 2)] <- '> 1 co-infection'
+infl_uniq_cols <- infl[apply(infl[,1:4], 1, FUN = function(x) sum(!is.na(x)) == 1),]
+infl_uniq <- apply(infl_uniq_cols[,1:4], 1, FUN = function(x) x[!is.na(x)])
+infl$type[apply(infl[,1:4], 1, FUN = function(x) sum(!is.na(x)) == 1)] <- infl_uniq
+
+## Endemic human coronavirus
+cov <- cbind(dt[dt$cov_col,1], dt[dt$cov_col,2], dt[dt$cov_col,3], dt[dt$cov_col,4])
+cov <- cbind(gsub('Endemic human coronavirus', NA, cov[,1]), gsub('Endemic human coronavirus', NA, cov[,2]), gsub('Endemic human coronavirus', NA, cov[,3]), gsub('Endemic human coronavirus', NA, cov[,4]))
+cov <- as.data.frame(cov)
+cov$type <- 'Endemic human coronavirus'
+cov$type[apply(cov[,1:4], 1, FUN = function(x) sum(!is.na(x)) == 2)] <- '> 1 co-infection'
+cov_uniq_cols <- cov[apply(cov[,1:4], 1, FUN = function(x) sum(!is.na(x)) == 1),]
+cov_uniq <- apply(cov_uniq_cols[,1:4], 1, FUN = function(x) x[!is.na(x)])
+cov$type[apply(cov[,1:4], 1, FUN = function(x) sum(!is.na(x)) == 1)] <- cov_uniq
+
+
+dd_fig_all <- rbind(
+  cov %>% mutate(virus = 'Endemic human coronavirus') %>% dplyr::select(virus, type),
+  infl %>% mutate(virus = 'Influenza') %>% dplyr::select(virus, type),
+  sarscov %>% mutate(virus = 'Sars-CoV-2') %>% dplyr::select(virus, type),
+  metap %>% mutate(virus = 'Human Metapneumovirus') %>% dplyr::select(virus, type),
+  ade %>% mutate(virus = 'Adenovirus') %>% dplyr::select(virus, type),
+  boca %>% mutate(virus = 'Bocavirus') %>% dplyr::select(virus, type),
+  para %>% mutate(virus = 'Parainfluenza') %>% dplyr::select(virus, type),
+  rsv %>% mutate(virus = 'RSV') %>% dplyr::select(virus, type),
+  rhi %>% mutate(virus = 'Rhinovirus/Enterovirus') %>% dplyr::select(virus, type),
+  data.frame(virus = rep('No virus', 127), type = rep('No virus', 127))
+  )
+colnames(dd_fig_all) <- c('virus', 'type')
+
+library(RColorBrewer)
+
+dd_fig <- dd_fig_all
+
+## Increasing
+order_virus <- sort(table(dd_fig$virus))
+dd_fig$virus <- factor(dd_fig$virus, levels = c('Adenovirus',
+                                                'Bocavirus',
+                                                'Endemic human coronavirus',
+                                                'Human Metapneumovirus',
+                                                'Influenza',
+                                                'No virus',
+                                                'Parainfluenza',
+                                                'Rhinovirus/Enterovirus',
+                                                'RSV',
+                                                'Sars-CoV-2',
+                                                '> 1 co-infection'))
+dd_fig$type <- as.factor(dd_fig$type)
+
+## Increasing
+order_virus <- sort(table(dd_fig$virus))
+dd_fig$virus <- factor(dd_fig$virus, levels = names(order_virus))
+dd_fig$type <- as.factor(dd_fig$type)
+
+## Figure
+totals <- aggregate(dd_fig$virus, list(dd_fig$virus), length)
+colnames(totals) <- c('virus', 'total')
+totals$groups_seq <- 99
+
+dd_figb <- dd_fig %>%
+  group_by(virus, type) %>%
+  summarise(totals = n()) %>%
+  mutate(groups_seq = ifelse(type == 'Adenovirus', 1,
+                             ifelse(type == 'Bocavirus', 2,
+                                    ifelse(type == 'Endemic human coronavirus', 3,
+                                           ifelse(type == 'Human Metapneumovirus', 4,
+                                                  ifelse(type == 'Influenza', 5,
+                                                         ifelse(type == 'No virus', 6,
+                                                                ifelse(type == 'Parainfluenza', 7,
+                                                                       ifelse(type == 'Rhinovirus/Enterovirus', 8,
+                                                                              ifelse(type == 'RSV', 9,
+                                                                                     ifelse(type == 'Sars-CoV-2', 10, 11)))))))))),
+         totals_max = max(totals),
+         groups_seq = ifelse(totals == totals_max, 99, groups_seq)) %>%
+  ungroup()
+
+dd_figb[dd_figb$virus == 'Bocavirus' & dd_figb$type == 'Rhinovirus/Enterovirus',]$groups_seq <- 8
+dd_figb[dd_figb$virus == 'Bocavirus' & dd_figb$type == 'Bocavirus',]$groups_seq <- 99
+dd_figb[dd_figb$type=='> 1 co-infection',]$groups_seq <- 0
+
+ggplot(dd_figb, aes(x = virus, y = totals, group = groups_seq, fill = forcats::fct_rev(type))) +
+  #scale_fill_brewer(palette="Set1") +
+  geom_bar(stat='identity', width = 0.75) +
+  geom_text(aes(virus, total, label = total, fill = NULL), data = totals, nudge_y = 8, size = 6) +
+  scale_fill_manual(name = NULL,
+                    #values = c('red', 'green', 'blue', 'orange', 'grey', 'black',
+                    #                 'yellow', 'violet', 'pink', 'darkblue')) +
+                    values = c('darkgrey', 'darksalmon', brewer.pal(8, 'Dark2'), '#7acde9'),
+                    guide = guide_legend(reverse = FALSE)) +
+  scale_x_discrete(limits = rev) +
+  theme_bw() +
+  coord_flip() +
+  theme(axis.text.x = element_text(size = 16),
+        axis.text.y = element_text(size = 16),
+        axis.title.x = element_text(size = 18),
+        legend.text = element_text(size = 16)
+  ) +
+  xlab('') +
+  ylab('Respiratory Viruses Detected (N)')
+```
+
+### Extra information {.tabset}
+
+#### Malaria coinfection
+
+**Number of patients positive for malaria**: `r sum(data_bsl$malaria_positive == 'yes')`
+
+```{r}
+ids_co_infection <- dd2b %>%
+  mutate(coinfection = ifelse((is.na(round1) & is.na(round2) & is.na(round3) & is.na(round4)), 0, 1))
+
+dd_malaria_coinfection <- data_bsl %>%
+  filter(malaria_positive == 'yes') %>%
+  mutate(malaria_coinfection = 1*(study_id %in% ids_co_infection$id[ids_co_infection$coinfection==1]),
+         study_id = as.character(study_id)) %>%
+  left_join(dd2b %>% rename(study_id = id), by = 'study_id') %>%
+  dplyr::select(study_id, malaria_positive, malaria_coinfection, round1, round2, round3, round4)
+
+malaria_coinfection <- dd_malaria_coinfection %>%
+  summarise(malaria_coinfection = sum(!is.na(round1))) %>%
+  rename(`Positive for malaria AND virus (any)` = malaria_coinfection)
+```
+
+**Number of patients that were also positive for any virus**: `r malaria_coinfection`
+
+**Frequency of viruses detected, among patients positive for malaria**:
+
+```{r}
+table(c(dd_malaria_coinfection$round1,
+        dd_malaria_coinfection$round2,
+        dd_malaria_coinfection$round3,
+        dd_malaria_coinfection$round4)) %>%
+  kable(., col.names = c('Virus', 'Frequency')) %>% kable_styling()
+```
+
+#### Severity scores
+
+**Severity scores, by group (N)**:
+
+```{r}
+data_virus <- data_virus %>%
+  mutate(score_O2 = ifelse(is.na(o2_sat), NA,
+                           ifelse(o2_sat >= 97, 0,
+                                  ifelse(o2_sat >=94, 1,
+                                         ifelse(o2_sat >= 90, 2, 3)))),
+         score_resp = ifelse(is.na(resp_rate), NA,
+                             ifelse(resp_rate < 40, 0,
+                                    ifelse(resp_rate <= 49, 1,
+                                           ifelse(resp_rate <= 59, 2, 3)))),
+         score_flaring = ifelse(is.na(flaring_accessory_muscle), NA,
+                                ifelse(flaring_accessory_muscle == 0, 0, 3)),
+         score_wheezing = ifelse(is.na(wheezing), NA,
+                                 ifelse(wheezing == 'No', 0, 3)),
+         severity_score = score_O2 + score_resp + score_flaring + score_wheezing)
+
+dd_sev_scores <- rbind(table(data_virus$score_resp),
+                       table(data_virus$score_O2),
+                       c(table(data_virus$score_flaring)[1], '-', '-', table(data_virus$score_flaring)[2]),
+                       c(table(data_virus$score_wheezing)[1], '-', '-', table(data_virus$score_wheezing)[2])) %>%
+  as.data.frame()
+rownames(dd_sev_scores) <- c('Respiratory Rate', 'O2 saturation', 'Nasal flaring/use of accessory muscles', 'Wheezing')
+dd_sev_scores %>% kable() %>% kable_styling()
+```
+
+
+**Severity scores, by group (%, taken by row)**:
+
+```{r}
+dd_sev_scores_prop <- rbind(round(prop.table(table(data_virus$score_resp))*100, 2),
+                            round(prop.table(table(data_virus$score_O2))*100, 2),
+                            c(round(prop.table(table(data_virus$score_flaring))*100, 2)[1], '-', '-', round(prop.table(table(data_virus$score_flaring))*100, 2)[2]),
+                            c(round(prop.table(table(data_virus$score_wheezing))*100, 2)[1], '-', '-', round(prop.table(table(data_virus$score_wheezing))*100, 2)[2])) %>%
+  as.data.frame()
+rownames(dd_sev_scores_prop) <- c('Respiratory Rate', 'O2 saturation', 'Nasal flaring/use of accessory muscles', 'Wheezing')
+dd_sev_scores_prop %>% kable() %>% kable_styling()
+```
+
+
+**Frequency and proportion of patients by their overall (combined) severity scores**:
+
+```{r}
+data.frame(Severity = 0:11, cbind(table(data_virus$severity_score), round(prop.table(table(data_virus$severity_score))*100,2))) %>%
+  kable(., col.names = c('Severity score', 'Frequency', 'Proportion'), row.names = FALSE) %>% kable_styling()
+```
+
+
+**Summary of total scores**:
+
+```{r}
+paste0('Median Score = ', summary(data_virus$severity_score)[3], '; IQR = (', summary(data_virus$severity_score)[2], ' ; ', summary(data_virus$severity_score)[5], ')')
+```
+
+**Histogram of severity scores**:
+
+```{r}
+ggplot(data_virus, aes(x = severity_score)) +
+  geom_histogram(bins = 23) +
+  theme_bw() +
+  xlab('Severity score') +
+  ylab('Frequency') +
+  theme(axis.text.x = element_text(size = 16),
+        axis.text.y = element_text(size = 16),
+        axis.title.x = element_text(size = 18),
+        axis.title.y = element_text(size = 18),
+        legend.text = element_text(size = 16)
+  )
+```
+
+
+**3-level score categorization (N, %):**
+
+```{r}
+data_virus <- data_virus %>%
+  mutate(score_3levels = ifelse(is.na(severity_score), NA,
+                                ifelse(severity_score <= 5, 'Mild',
+                                       ifelse(severity_score <= 8, 'Moderate', 'Severe'))))
+
+data.frame(Severity = c('Mild', 'Moderate', 'Severe'), cbind(table(data_virus$score_3levels), round(prop.table(table(data_virus$score_3levels))*100, 2))) %>%
+  kable(., col.names = c('Severity', 'Fequency', 'Proportion'), row.names = FALSE) %>% kable_styling()
+```
+
+#### Severity score (3 levels, Table 1)
+
+```{r}
+data_severity_score_3leves <- data_bsl %>%
+  left_join(data_virus %>% dplyr::select(study_id, score_3levels), by = 'study_id')
+
+tab1_severity3levels_cg <- compareGroups(formula = score_3levels ~ age + sex +
+                                           household_member_smokes + use_indoor_burning_stove +
+                                           premature + mode_of_delivery + twin + birthweight +
+                                           bmi + zbmi + malnut_acute + malnut_chronic + temperature + o2_delivered + xray_abnormal + icu +
+                                           hiv_aids + tb + sickle_cell + length_stay + length_stay_days,
+                                         data = data_severity_score_3leves, method = 2)
+export2md(createTable(tab1_severity3levels_cg, show.all = TRUE))
+```
+
+
+#### Reviewer: malnutrition
+
+Table of acute malnutrition vs chronic malnutrition:
+
+**3-levels:**
+
+```{r}
+data_virus$malnut_acute <- factor(data_virus$malnut_acute, levels = c('Normal', 'Moderate', 'Severe'))
+data_virus$malnut_chronic <- factor(data_virus$malnut_chronic, levels = c('Normal', 'Moderate', 'Severe'))
+
+table(data_virus$malnut_acute, data_virus$malnut_chronic)
+
+chisq.test(data_virus$malnut_acute, data_virus$malnut_chronic)
+```
+
+**2-levels:**
+
+```{r}
+data_virus$malnut_acute <- factor(data_virus$malnut_acute, levels = c('Normal', 'Moderate', 'Severe'))
+data_virus$malnut_chronic <- factor(data_virus$malnut_chronic, levels = c('Normal', 'Moderate', 'Severe'))
+
+data_virus$global_acute <- as.factor(data_virus$global_acute)
+data_virus$global_acute <- relevel(data_virus$global_acute, ref = 'Normal')
+data_virus$global_chronic <- as.factor(data_virus$global_chronic)
+data_virus$global_chronic <- relevel(data_virus$global_chronic, ref = 'Normal')
+
+table(data_virus$global_acute, data_virus$global_chronic)
+
+chisq.test(data_virus$global_acute, data_virus$malnut_chronic)
+```
+
+### Regression: O2 {.tabset}
+
+#### All {.tabset}
+
+```{r}
+data_virus$malnut_acute <- factor(data_virus$malnut_acute, levels = c('Normal', 'Moderate', 'Severe'))
+data_virus$malnut_chronic <- factor(data_virus$malnut_chronic, levels = c('Normal', 'Moderate', 'Severe'))
+
+data_anchor_reg <- data_virus %>%
+  mutate(o2 = ifelse(is.na(o2_delivered) | o2_delivered == 'Unknown', NA,
+                     ifelse(o2_delivered == 'Yes', 1, 0)),
+         ICU = ifelse(is.na(icu) | icu == 'Unknown', NA,
+                     ifelse(icu == 'Yes', 1, 0)),
+         malaria_positive = as.factor(malaria_positive),
+         malaria_positive = relevel(malaria_positive, ref = 'no'),
+         age_months = ifelse(is.na(age), NA, age/30.41),
+         n_virus1 = 1*(!is.na(round1)),
+         n_virus2 = 1*(!is.na(round2)),
+         n_virus3 = 1*(!is.na(round3)),
+         n_virus = n_virus1 + n_virus2 + n_virus3,
+         virus_confinfection = ifelse(n_virus == 0, 'No virus',
+                                      ifelse(n_virus == 1, '1 virus', '2+ virus')),
+         virus_confinfection = ifelse(virus_confinfection == '2+ virus', 'Yes', 'No'),
+         household_member_smokes = ifelse(is.na(household_member_smokes) | household_member_smokes == 'Unsure', NA,
+                                          ifelse(household_member_smokes == 'Yes', 1, 0)),
+         use_indoor_burning_stove =  ifelse(is.na(use_indoor_burning_stove) | use_indoor_burning_stove == 'Unsure', NA,
+                                            ifelse(use_indoor_burning_stove == 'Yes', 1, 0)),
+         indoor_polutants = ifelse(is.na(household_member_smokes) & is.na(use_indoor_burning_stove), NA, 
+                                   ifelse(is.na(household_member_smokes), use_indoor_burning_stove,
+                                          ifelse(is.na(use_indoor_burning_stove), household_member_smokes,
+                                                 1*(household_member_smokes + use_indoor_burning_stove >= 1)))),
+         indoor_polutants = ifelse(is.na(indoor_polutants), NA,
+                                   ifelse(indoor_polutants == 1, 'Yes', 'No')),
+         indoor_polutants = as.factor(indoor_polutants),
+         indoor_polutants = relevel(indoor_polutants, ref='No'),
+         virus_confinfection = as.factor(virus_confinfection),
+         virus_confinfection = relevel(virus_confinfection, ref='No'),
+         sex = as.factor(sex),
+         sex = relevel(sex, ref='Female'),
+         malaria_positive = as.factor(malaria_positive),
+         malaria_positive = relevel(malaria_positive, ref='no'),
+         premature = as.factor(premature),
+         premature = relevel(premature, ref='No')) %>%
+  dplyr::select(-redcap_data_access_group, -redcap_survey_identifier,
+                -introduction_and_screening_timestamp, -child_24_mnths,
+                -hospitalized_cases, -newborns_never_discharged,
+                -symps_14_days, -consent_obtained, -informed_consent_obtained,
+                -demographics_timestamp, -current_illness_and_medical_history_timestamp,
+                -demographics_complete, -otitis_media, -measles, -lassa_fever,
+                -heart_failure, -fb_ingestion, -antibiotic_used_v2_v2___3,
+                -other_multiple_gestation_v2_v2, -dietnutritional_and_social_history_timestamp,
+                -current_illness_and_medical_history_complete, -multiple_gestation_1_v2_v2,
+                -physical_exam_timestamp, -dietnutritional_and_social_history_complete,
+                -medical_chart_review_timestamp, -wheezing_severity, -physical_exam_complete,
+                -hosp_antibiotic_use_v2_v2_v2_v2_v2, -antibiotics_used_v2___7,
+                -antibiotics_used_v2___12, -antimalarials_used___3, -antimalarials_used___5,
+                -discharge_diagnosis_v2_v2_v2_v2_v2___3, -discharge_diagnosis_v2_v2_v2_v2_v2___11,
+                -discharge_diagnosis_v2_v2_v2_v2_v2___19, -discharge_diagnosis_v2_v2_v2_v2_v2___20,
+                -discharge_diagnosis_v2_v2_v2_v2_v2___21, -discharge_diagnosis_v2_v2_v2_v2_v2___22,
+                -medical_chart_review_complete, -laboratory_results_timestamp, -plat,
+                -lf_rdt_v2_v2_v2_v2_v2_v2, -lf_rdt_result_v2_v2_v2_v2_v2_v2, -laboratory_results_complete)
+
+data_anchor_reg$global_acute <- as.factor(data_anchor_reg$global_acute)
+data_anchor_reg$global_acute <- relevel(data_anchor_reg$global_acute, ref = 'Normal')
+data_anchor_reg$global_acute <- as.factor(data_anchor_reg$global_acute)
+data_anchor_reg$global_acute <- relevel(data_anchor_reg$global_acute, ref = 'Normal')
+
+attr(data_anchor_reg$virus_confinfection, "label") <- "Virus co-infection"
+attr(data_anchor_reg$zbmi, 'label') <- 'BMI-for-age z-score'
+attr(data_anchor_reg$malnut_acute, 'label') <- 'Acute Malnutrition'
+attr(data_anchor_reg$malnut_chronic, 'label') <- 'Chronic Malnutrition'
+attr(data_anchor_reg$global_acute, 'label') <- 'Global Acute'
+attr(data_anchor_reg$global_chronic, 'label') <- 'Global Chronic'
+attr(data_anchor_reg$indoor_polutants, "label") <- "Indoor polutants"
+
+#  dplyr::select(o2, ICU, age_months, sex, birthweight, malaria_positive, premature, ga_weeks,
+#                zbmi, indoor_polutants, virus_confinfection)
+```
+
+##### Regression
+
+- Outcome: Use of O2, Yes (=1) vs No (=0). Reference level = No
+- Continuous variables fitted with restricted cubic splines
+
+```{r}
+d <- datadist(data_anchor_reg)
+options(datadist="d")
+
+reg_o2 <- lrm(o2 ~ rcs(age, 3) + sex + rcs(birthweight, 3) + indoor_polutants +
+                premature + virus_confinfection + global_acute + global_chronic +
+                length_stay_days + antibiotics_prior, data = data_anchor_reg)
+
+r1a <- summary(reg_o2, age = c(12, 6))
+r1b <- summary(reg_o2, age = c(12, 18))
+
+reg_o2_summary_1a <- r1a[grep(' Odds Ratio', rownames(r1a)),]
+reg_o2_summary_1b <- r1b[grep(' Odds Ratio', rownames(r1b)),]
+
+reg_o2_pvals <- anova(reg_o2)[c(2, 5, 6, 3, 7:12), ]
+
+coefs_var <- cbind(reg_o2$coefficients,
+                   reg_o2$coefficients - 1.96*sqrt(diag(reg_o2$var)),
+                   reg_o2$coefficients + 1.96*sqrt(diag(reg_o2$var)))
+coefs_var <- exp(coefs_var)[c(7,4,8:13),]
+
+OR = rbind(c(rep('',3), round(reg_o2_pvals[1, 3], 3)),
+           c(round(cbind(reg_o2_summary_1a[1,4], reg_o2_summary_1a[1,6], reg_o2_summary_1a[1,7]), 2), ''),
+           c(rep('Ref',3), ''),
+           c(round(cbind(reg_o2_summary_1b[1,4], reg_o2_summary_1b[1,6], reg_o2_summary_1b[1,7]), 2), ''),
+           c(rep('',3), round(reg_o2_pvals[2, 3], 3)),
+           c(rep('Ref',3), ''),
+           c(round(cbind(reg_o2_summary_1a[2,4], reg_o2_summary_1a[2,6], reg_o2_summary_1a[1,7]), 2), ''),
+           cbind(round(coefs_var, 2), c(round(reg_o2_pvals[-c(1:2), 3], 3))))
+rownames(OR) <- NULL
+
+reg_o2_print <- data.frame(Variable = c('Age (in months)', '6 months', '12 monhts', '18 months',
+                                        'Birthweight', '2.8', '3.4',
+                                        'Indoor Polutants: Yes',
+                                        'Sex: Male',
+                                        'Premature: Yes',
+                                        'Virus co-infection: Yes',
+                                        'Global Acute malnutrion: Moderate/Severe',
+                                        'Global Chronic malnutrion: Moderate/Severe',
+                                        'Length of stay in hospital (in days)',
+                                        'Antiobitics received prior to admission'),
+                           OR = OR)
+colnames(reg_o2_print) <- c('Variable', 'Odds Ratio', 'Lower CI', 'Upper CI', 'P-value')
+
+reg_o2_print %>% kable(., booktabs = TRUE, align = 'r', digits = 2) %>% kable_styling()
+```
+
+##### Figures
+
+- Probability of using O2:
+
+```{r}
+plot(Predict(reg_o2, fun = plogis))
+```
+
+##### Table
+
+```{r}
+ta1_o2 <- compareGroups(formula = o2 ~ age + birthweight + indoor_polutants +
+                          premature + virus_confinfection + malnut_acute + global_acute + malnut_chronic + global_chronic +
+                          length_stay + length_stay_days + antibiotics_prior,
+                        data = data_anchor_reg, method = 2)
+export2md(createTable(ta1_o2, show.all = TRUE))
+```
+
+
+
+
+
+#### O2: Virus {.tabset}
+
+##### Adenovirus
+
+Odds of requiring O2:
+
+```{r}
+## Paper: using PS or mulivariable regression
+# https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7713675/
+
+data_anchor_reg <- data_anchor_reg %>%
+  rowwise() %>%
+  mutate(Adenovirus = any(c(round1, round2, round3) == 'Adenovirus', na.rm = TRUE),
+         Bocavirus = any(c(round1, round2, round3) == 'Bocavirus', na.rm = TRUE),
+         EndemCoronaVirus = any(c(round1, round2, round3) == 'Endemic human coronavirus', na.rm = TRUE),
+         Sars_Cov_2 = any(c(round1, round2, round3) == 'SARS-CoV-2', na.rm = TRUE),
+         Influenza = any(c(round1, round2, round3) == 'Influenza', na.rm = TRUE),
+         Metapneumovirus = any(c(round1, round2, round3) == 'Human Metapneumovirus', na.rm = TRUE),
+         Parainfluenza = any(c(round1, round2, round3) == 'Parainfluenza', na.rm = TRUE),
+         RhinoEnterovirus = any(c(round1, round2, round3) == 'Rhinovirus/Enterovirus', na.rm = TRUE),
+         RSV = any(c(round1, round2, round3) %in% c('RSVA', 'RSVB', 'RSV'), na.rm = TRUE)) %>%
+  ungroup() %>%
+  mutate(Adenovirus = ifelse(Adenovirus, 'Yes', 'No'),
+         Bocavirus = ifelse(Bocavirus, 'Yes', 'No'),
+         EndemCoronaVirus = ifelse(EndemCoronaVirus, 'Yes', 'No'),
+         Sars_Cov_2 = ifelse(Sars_Cov_2, 'Yes', 'No'),
+         Influenza = ifelse(Influenza, 'Yes', 'No'),
+         Metapneumovirus = ifelse(Metapneumovirus, 'Yes', 'No'),
+         Parainfluenza = ifelse(Parainfluenza, 'Yes', 'No'),
+         RhinoEnterovirus = ifelse(RhinoEnterovirus, 'Yes', 'No'),
+         RSV = ifelse(RSV, 'Yes', 'No'))
+
+ps_mod <- lrm(Adenovirus ~ age + sex + birthweight + number_in_house, data = data_anchor_reg)
+data_anchor_reg$ps <- predict(ps_mod, type='fitted')
+
+d <- datadist(data_anchor_reg)
+options(datadist="d")
+
+reg_ps_o2_adeno <- lrm(o2 ~ Adenovirus + rcs(ps, 3), data = data_anchor_reg)
+c(summary(reg_ps_o2_adeno)[which(rownames(summary(reg_ps_o2_adeno)) == 'Adenovirus - Yes:No')+1,c(4,6:7)],
+  anova(reg_ps_o2_adeno)[which(rownames(anova(reg_ps_o2_adeno)) == 'Adenovirus'),3])
+plot(Predict(reg_ps_o2_adeno, fun = plogis), ylab='Probability of requiring O2')[1]
+```
+
+
+##### Bocavirus
+
+Odds of requiring O2:
+
+```{r}
+ps_mod <- lrm(Bocavirus ~ age + sex + birthweight + number_in_house, data = data_anchor_reg)
+data_anchor_reg$ps <- predict(ps_mod, type='fitted')
+
+d <- datadist(data_anchor_reg)
+options(datadist="d")
+
+reg_ps_o2_boca <- lrm(o2 ~ Bocavirus + rcs(ps, 3), data = data_anchor_reg)
+c(summary(reg_ps_o2_boca)[which(rownames(summary(reg_ps_o2_boca)) == 'Bocavirus - Yes:No')+1,c(4,6:7)],
+  anova(reg_ps_o2_boca)[which(rownames(anova(reg_ps_o2_boca)) == 'Bocavirus'),3])
+plot(Predict(reg_ps_o2_boca, fun = plogis), ylab='Probability of requiring O2')[1]
+```
+
+
+
+
+##### Endemic Human Coronaviruses (CoV)
+
+Odds of requiring O2:
+
+```{r}
+ps_mod <- lrm(EndemCoronaVirus ~ age + sex + birthweight + number_in_house, data = data_anchor_reg)
+data_anchor_reg$ps <- predict(ps_mod, type='fitted')
+
+d <- datadist(data_anchor_reg)
+options(datadist="d")
+
+reg_ps_o2_endem <- lrm(o2 ~ EndemCoronaVirus + rcs(ps, 3), data = data_anchor_reg)
+c(summary(reg_ps_o2_endem)[which(rownames(summary(reg_ps_o2_endem)) == 'EndemCoronaVirus - Yes:No')+1,c(4,6:7)], 
+  anova(reg_ps_o2_endem)[which(rownames(anova(reg_ps_o2_endem)) == 'EndemCoronaVirus'),3])
+plot(Predict(reg_ps_o2_endem, fun = plogis), ylab='Probability of requiring O2')[1]
+```
+
+
+
+##### SARS-CoV-2
+
+Odds of requiring O2:
+
+```{r}
+ps_mod <- lrm(Sars_Cov_2 ~ age + sex + birthweight + number_in_house, data = data_anchor_reg)
+data_anchor_reg$ps <- predict(ps_mod, type='fitted')
+
+d <- datadist(data_anchor_reg)
+options(datadist="d")
+
+reg_ps_o2_sars_covid_2 <- lrm(o2 ~ Sars_Cov_2 + rcs(ps, 3), data = data_anchor_reg)
+c(summary(reg_ps_o2_sars_covid_2)[which(rownames(summary(reg_ps_o2_sars_covid_2)) == 'Sars_Cov_2 - Yes:No')+1,c(4,6:7)],
+  anova(reg_ps_o2_sars_covid_2)[which(rownames(anova(reg_ps_o2_sars_covid_2)) == 'Sars_Cov_2'),3])
+plot(Predict(reg_ps_o2_sars_covid_2, fun = plogis), ylab='Probability of requiring O2')[2]
+```
+
+
+##### Influenza
+
+Odds of requiring O2:
+
+```{r}
+ps_mod <- lrm(Influenza ~ age + sex + birthweight + number_in_house, data = data_anchor_reg)
+data_anchor_reg$ps <- predict(ps_mod, type='fitted')
+
+d <- datadist(data_anchor_reg)
+options(datadist="d")
+
+reg_ps_o2_infl <- lrm(o2 ~ Influenza + rcs(ps, 3), data = data_anchor_reg)
+c(summary(reg_ps_o2_infl)[which(rownames(summary(reg_ps_o2_infl)) == 'Influenza - Yes:No')+1,c(4,6:7)],
+  anova(reg_ps_o2_infl)[which(rownames(anova(reg_ps_o2_infl)) == 'Influenza'),3])
+plot(Predict(reg_ps_o2_infl, fun = plogis), ylab='Probability of requiring O2')[1]
+```
+
+
+
+##### Human metapneumovirus
+
+Odds of requiring O2:
+
+```{r}
+ps_mod <- lrm(Metapneumovirus ~ age + sex + birthweight + number_in_house, data = data_anchor_reg)
+data_anchor_reg$ps <- predict(ps_mod, type='fitted')
+
+d <- datadist(data_anchor_reg)
+options(datadist="d")
+
+reg_ps_o2_metapneumo <- lrm(o2 ~ Metapneumovirus + rcs(ps, 3), data = data_anchor_reg)
+c(summary(reg_ps_o2_metapneumo)[which(rownames(summary(reg_ps_o2_metapneumo)) == 'Metapneumovirus - Yes:No')+1,c(4,6:7)],
+  anova(reg_ps_o2_metapneumo)[which(rownames(anova(reg_ps_o2_metapneumo)) == 'Metapneumovirus'),3])
+plot(Predict(reg_ps_o2_metapneumo, fun = plogis), ylab='Probability of requiring O2')[1]
+```
+
+
+
+##### Parainfluenza
+
+Odds of requiring O2:
+
+```{r}
+ps_mod <- lrm(Parainfluenza ~ age + sex + birthweight + number_in_house, data = data_anchor_reg)
+data_anchor_reg$ps <- predict(ps_mod, type='fitted')
+
+d <- datadist(data_anchor_reg)
+options(datadist="d")
+
+reg_ps_o2_parainfl <- lrm(o2 ~ Parainfluenza + rcs(ps, 3), data = data_anchor_reg)
+c(summary(reg_ps_o2_parainfl)[which(rownames(summary(reg_ps_o2_parainfl)) == 'Parainfluenza - Yes:No')+1,c(4,6:7)],
+  anova(reg_ps_o2_parainfl)[which(rownames(anova(reg_ps_o2_parainfl)) == 'Parainfluenza'),3])
+plot(Predict(reg_ps_o2_parainfl, fun = plogis), ylab='Probability of requiring O2')[1]
+```
+
+
+##### Rhinovirus/Enterovirus
+
+Odds of requiring O2:
+
+```{r}
+ps_mod <- lrm(RhinoEnterovirus ~ age + sex + birthweight + number_in_house, data = data_anchor_reg)
+data_anchor_reg$ps <- predict(ps_mod, type='fitted')
+
+d <- datadist(data_anchor_reg)
+options(datadist="d")
+
+reg_ps_o2_rino <- lrm(o2 ~ RhinoEnterovirus + rcs(ps, 3), data = data_anchor_reg)
+c(summary(reg_ps_o2_rino)[which(rownames(summary(reg_ps_o2_rino)) == 'RhinoEnterovirus - Yes:No')+1,c(4,6:7)],
+  anova(reg_ps_o2_rino)[which(rownames(anova(reg_ps_o2_rino)) == 'RhinoEnterovirus'),3])
+plot(Predict(reg_ps_o2_rino, fun = plogis), ylab='Probability of requiring O2')[2]
+```
+
+
+
+##### RSV
+
+Odds of requiring O2:
+
+```{r}
+ps_mod <- lrm(RSV ~ age + sex + birthweight + number_in_house, data = data_anchor_reg)
+data_anchor_reg$ps <- predict(ps_mod, type='fitted')
+
+d <- datadist(data_anchor_reg)
+options(datadist="d")
+
+reg_ps_o2_rsv <- lrm(o2 ~ RSV + rcs(ps, 3), data = data_anchor_reg)
+c(summary(reg_ps_o2_rsv)[which(rownames(summary(reg_ps_o2_rsv)) == 'RSV - Yes:No')+1,c(4,6:7)],
+  anova(reg_ps_o2_rsv)[which(rownames(anova(reg_ps_o2_rsv)) == 'RSV'),3])
+plot(Predict(reg_ps_o2_rsv, fun = plogis), ylab='Probability of requiring O2')[2]
+```
+
+
+
+
+
+
+
+
+### Regression: ICU {.tabset}
+
+#### All {.tabset}
+
+##### Regression
+
+- Outcome: ICU, Yes (=1) vs No (=0). Reference level = No ICU
+- Continuous variables fitted with restricted cubic splines
+
+```{r}
+reg_ICU <- lrm(ICU ~ rcs(age, 3) + sex + rcs(birthweight, 3) + indoor_polutants +
+                 premature + virus_confinfection + global_acute + global_chronic +
+                 length_stay_days + antibiotics_prior, data = data_anchor_reg %>% filter(discharge == 'Alive'))
+
+r1a <- summary(reg_ICU, age = c(12, 6))
+r1b <- summary(reg_ICU, age = c(12, 18))
+
+reg_ICU_summary_1a <- r1a[grep(' Odds Ratio', rownames(r1a)),]
+reg_ICU_summary_1b <- r1b[grep(' Odds Ratio', rownames(r1b)),]
+
+reg_ICU_pvals <- anova(reg_ICU)[c(2, 5, 6, 3, 7:12), ]
+
+coefs_var <- cbind(reg_ICU$coefficients,
+                   reg_ICU$coefficients - 1.96*sqrt(diag(reg_ICU$var)),
+                   reg_ICU$coefficients + 1.96*sqrt(diag(reg_ICU$var)))
+coefs_var <- exp(coefs_var)[c(7,4,8:13),]
+
+OR = rbind(c(rep('',3), round(reg_ICU_pvals[1, 3], 3)),
+           c(round(cbind(reg_ICU_summary_1a[1,4], reg_ICU_summary_1a[1,6], reg_ICU_summary_1a[1,7]), 2), ''),
+           c(rep('Ref',3), ''),
+           c(round(cbind(reg_ICU_summary_1b[1,4], reg_ICU_summary_1b[1,6], reg_ICU_summary_1b[1,7]), 2), ''),
+           c(rep('',3), round(reg_ICU_pvals[2, 3], 3)),
+           c(rep('Ref',3), ''),
+           c(round(cbind(reg_ICU_summary_1a[2,4], reg_ICU_summary_1a[2,6], reg_ICU_summary_1a[1,7]), 2), ''),
+           cbind(round(coefs_var, 2), c(round(reg_ICU_pvals[-c(1:2), 3], 3))))
+rownames(OR) <- NULL
+
+reg_ICU_print <- data.frame(Variable = c('Age (in months)', '6 months', '12 monhts', '18 months',
+                                        'Birthweight', '2.8', '3.4',
+                                        'Indoor Polutants: Yes',
+                                        'Sex: Male',
+                                        'Premature: Yes',
+                                        'Virus co-infection: Yes',
+                                        'Acute malnutrion: Moderate/Severe',
+                                        'Chronic malnutrion: Moderate/Severe',
+                                        'Length of stay in hospital (in days)',
+                                        'Antiobitics received prior to admission'),
+                           OR = OR)
+colnames(reg_ICU_print) <- c('Variable', 'Odds Ratio', 'Lower CI', 'Upper CI', 'P-value')
+
+reg_ICU_print %>% kable(., booktabs = TRUE, align = 'r') %>% kable_styling()
+```
+
+**Figure:** Non-linear effect of age on the (log) odds of moving to ICU
+
+```{r}
+plot(Predict(reg_ICU, age))
+```
+
+##### Regression (review 1)
+
+- Removing **Global chronic** variable
+- Outcome: ICU, Yes (=1) vs No (=0). Reference level = No ICU
+- Continuous variables fitted with restricted cubic splines
+
+```{r}
+reg_ICU <- lrm(ICU ~ rcs(age, 3) + sex + rcs(birthweight, 3) + indoor_polutants +
+                 premature + virus_confinfection + global_acute +
+                 length_stay_days + antibiotics_prior, data = data_anchor_reg %>% filter(discharge == 'Alive'))
+
+d <- datadist(data_anchor_reg)
+options(datadist="d")
+
+r1a <- summary(reg_ICU, age = c(12, 6))
+r1b <- summary(reg_ICU, age = c(12, 18))
+
+reg_ICU_summary_1a <- r1a[grep(' Odds Ratio', rownames(r1a)),]
+reg_ICU_summary_1b <- r1b[grep(' Odds Ratio', rownames(r1b)),]
+
+reg_ICU_pvals <- anova(reg_ICU)[c(2, 5, 6, 3, 7:11), ]
+
+coefs_var <- cbind(reg_ICU$coefficients,
+                   reg_ICU$coefficients - 1.96*sqrt(diag(reg_ICU$var)),
+                   reg_ICU$coefficients + 1.96*sqrt(diag(reg_ICU$var)))
+coefs_var <- exp(coefs_var)[c(7,4,8:12),]
+
+OR = rbind(c(rep('',3), round(reg_ICU_pvals[1, 3], 3)),
+           c(round(cbind(reg_ICU_summary_1a[1,4], reg_ICU_summary_1a[1,6], reg_ICU_summary_1a[1,7]), 2), ''),
+           c(rep('Ref',3), ''),
+           c(round(cbind(reg_ICU_summary_1b[1,4], reg_ICU_summary_1b[1,6], reg_ICU_summary_1b[1,7]), 2), ''),
+           c(rep('',3), round(reg_ICU_pvals[2, 3], 3)),
+           c(rep('Ref',3), ''),
+           c(round(cbind(reg_ICU_summary_1a[2,4], reg_ICU_summary_1a[2,6], reg_ICU_summary_1a[1,7]), 2), ''),
+           cbind(round(coefs_var, 2), c(round(reg_ICU_pvals[-c(1:2), 3], 3))))
+rownames(OR) <- NULL
+
+reg_ICU_print <- data.frame(Variable = c('Age (in months)', '6 months', '12 monhts', '18 months',
+                                        'Birthweight', '2.8', '3.4',
+                                        'Indoor Polutants: Yes',
+                                        'Sex: Male',
+                                        'Premature: Yes',
+                                        'Virus co-infection: Yes',
+                                        'Acute malnutrion: Moderate/Severe',
+                                        #'Chronic malnutrion: Moderate/Severe',
+                                        'Length of stay in hospital (in days)',
+                                        'Antiobitics received prior to admission'),
+                           OR = OR)
+colnames(reg_ICU_print) <- c('Variable', 'Odds Ratio', 'Lower CI', 'Upper CI', 'P-value')
+
+reg_ICU_print %>% kable(., booktabs = TRUE, align = 'r') %>% kable_styling()
+```
+
+**Figure:** Non-linear effect of age on the (log) odds of moving to ICU
+
+```{r}
+plot(Predict(reg_ICU, age))
+```
+
+##### Regression (review 2)
+
+- Removing **Global acute** variable
+- Outcome: ICU, Yes (=1) vs No (=0). Reference level = No ICU
+- Continuous variables fitted with restricted cubic splines
+
+```{r}
+reg_ICU <- lrm(ICU ~ rcs(age, 3) + sex + rcs(birthweight, 3) + indoor_polutants +
+                 premature + virus_confinfection + global_chronic +
+                 length_stay_days + antibiotics_prior, data = data_anchor_reg %>% filter(discharge == 'Alive'))
+
+d <- datadist(data_anchor_reg)
+options(datadist="d")
+
+r1a <- summary(reg_ICU, age = c(12, 6))
+r1b <- summary(reg_ICU, age = c(12, 18))
+
+reg_ICU_summary_1a <- r1a[grep(' Odds Ratio', rownames(r1a)),]
+reg_ICU_summary_1b <- r1b[grep(' Odds Ratio', rownames(r1b)),]
+
+reg_ICU_pvals <- anova(reg_ICU)[c(2, 5, 6, 3, 7:11), ]
+
+coefs_var <- cbind(reg_ICU$coefficients,
+                   reg_ICU$coefficients - 1.96*sqrt(diag(reg_ICU$var)),
+                   reg_ICU$coefficients + 1.96*sqrt(diag(reg_ICU$var)))
+coefs_var <- exp(coefs_var)[c(7,4,8:12),]
+
+OR = rbind(c(rep('',3), round(reg_ICU_pvals[1, 3], 3)),
+           c(round(cbind(reg_ICU_summary_1a[1,4], reg_ICU_summary_1a[1,6], reg_ICU_summary_1a[1,7]), 2), ''),
+           c(rep('Ref',3), ''),
+           c(round(cbind(reg_ICU_summary_1b[1,4], reg_ICU_summary_1b[1,6], reg_ICU_summary_1b[1,7]), 2), ''),
+           c(rep('',3), round(reg_ICU_pvals[2, 3], 3)),
+           c(rep('Ref',3), ''),
+           c(round(cbind(reg_ICU_summary_1a[2,4], reg_ICU_summary_1a[2,6], reg_ICU_summary_1a[1,7]), 2), ''),
+           cbind(round(coefs_var, 2), c(round(reg_ICU_pvals[-c(1:2), 3], 3))))
+rownames(OR) <- NULL
+
+reg_ICU_print <- data.frame(Variable = c('Age (in months)', '6 months', '12 monhts', '18 months',
+                                        'Birthweight', '2.8', '3.4',
+                                        'Indoor Polutants: Yes',
+                                        'Sex: Male',
+                                        'Premature: Yes',
+                                        'Virus co-infection: Yes',
+                                        #'Acute malnutrion: Moderate/Severe',
+                                        'Chronic malnutrion: Moderate/Severe',
+                                        'Length of stay in hospital (in days)',
+                                        'Antiobitics received prior to admission'),
+                           OR = OR)
+colnames(reg_ICU_print) <- c('Variable', 'Odds Ratio', 'Lower CI', 'Upper CI', 'P-value')
+
+reg_ICU_print %>% kable(., booktabs = TRUE, align = 'r') %>% kable_styling()
+```
+
+**Figure:** Non-linear effect of age on the (log) odds of moving to ICU
+
+```{r}
+plot(Predict(reg_ICU, age))
+```
+
+##### Figures
+
+- Probability of using ICU:
+
+```{r}
+plot(Predict(reg_ICU, fun = plogis))
+```
+
+##### Table
+
+```{r}
+ta1_icu <- compareGroups(formula = ICU ~ age + birthweight + indoor_polutants +
+                           premature + virus_confinfection + malnut_acute + global_acute + malnut_chronic + global_chronic +
+                           length_stay + length_stay_days + antibiotics_prior,
+                         data = data_anchor_reg, method = 2)
+export2md(createTable(ta1_icu, show.all = TRUE))
+```
+
+
+#### ICU: Virus {.tabset}
+
+##### Adenovirus
+
+Odds of requiring ICU:
+
+```{r}
+ps_mod <- lrm(Adenovirus ~ age + sex + birthweight + number_in_house, data = data_anchor_reg)
+data_anchor_reg$ps <- predict(ps_mod, type='fitted')
+
+d <- datadist(data_anchor_reg)
+options(datadist="d")
+
+reg_ps_ICU_adeno <- lrm(ICU ~ Adenovirus + rcs(ps, 3), data = data_anchor_reg)
+c(summary(reg_ps_ICU_adeno)[which(rownames(summary(reg_ps_ICU_adeno)) == 'Adenovirus - Yes:No')+1,c(4,6:7)],
+  anova(reg_ps_ICU_adeno)[which(rownames(anova(reg_ps_ICU_adeno)) == 'Adenovirus'),3])
+plot(Predict(reg_ps_ICU_adeno, fun = plogis), ylab='Probability of requiring ICU')[1]
+```
+
+
+##### Bocavirus
+
+Odds of requiring ICU:
+
+```{r}
+ps_mod <- lrm(Bocavirus ~ age + sex + birthweight + number_in_house, data = data_anchor_reg)
+data_anchor_reg$ps <- predict(ps_mod, type='fitted')
+
+d <- datadist(data_anchor_reg)
+options(datadist="d")
+
+reg_ps_ICU_boca <- lrm(ICU ~ Bocavirus + rcs(ps, 3), data = data_anchor_reg)
+c(summary(reg_ps_ICU_boca)[which(rownames(summary(reg_ps_ICU_boca)) == 'Bocavirus - Yes:No')+1,c(4,6:7)],
+  anova(reg_ps_ICU_boca)[which(rownames(anova(reg_ps_ICU_boca)) == 'Bocavirus'),3])
+plot(Predict(reg_ps_ICU_boca, fun = plogis), ylab='Probability of requiring ICU')[1]
+```
+
+
+
+
+##### Endemic Human Coronaviruses (CoV)
+
+Odds of requiring ICU:
+
+```{r}
+ps_mod <- lrm(EndemCoronaVirus ~ age + sex + birthweight + number_in_house, data = data_anchor_reg)
+data_anchor_reg$ps <- predict(ps_mod, type='fitted')
+
+d <- datadist(data_anchor_reg)
+options(datadist="d")
+
+reg_ps_ICU_endem <- lrm(ICU ~ EndemCoronaVirus + rcs(ps, 3), data = data_anchor_reg)
+c(summary(reg_ps_ICU_endem)[which(rownames(summary(reg_ps_ICU_endem)) == 'EndemCoronaVirus - Yes:No')+1,c(4,6:7)],
+  anova(reg_ps_ICU_endem)[which(rownames(anova(reg_ps_ICU_endem)) == 'EndemCoronaVirus'),3])
+plot(Predict(reg_ps_ICU_endem, fun = plogis), ylab='Probability of requiring ICU')[1]
+```
+
+
+
+##### SARS-CoV-2
+
+Odds of requiring ICU:
+
+```{r}
+ps_mod <- lrm(Sars_Cov_2 ~ age + sex + birthweight + number_in_house, data = data_anchor_reg)
+data_anchor_reg$ps <- predict(ps_mod, type='fitted')
+
+d <- datadist(data_anchor_reg)
+options(datadist="d")
+
+reg_ps_ICU_sars_covid_2 <- lrm(ICU ~ Sars_Cov_2 + rcs(ps, 3), data = data_anchor_reg)
+c(summary(reg_ps_ICU_sars_covid_2)[which(rownames(summary(reg_ps_ICU_sars_covid_2)) == 'Sars_Cov_2 - Yes:No')+1,c(4,6:7)],
+  anova(reg_ps_ICU_sars_covid_2)[which(rownames(anova(reg_ps_ICU_sars_covid_2)) == 'Sars_Cov_2'),3])
+plot(Predict(reg_ps_ICU_sars_covid_2, fun = plogis), ylab='Probability of requiring ICU')[2]
+```
+
+
+##### Influenza
+
+Odds of requiring ICU:
+
+```{r}
+ps_mod <- lrm(Influenza ~ age + sex + birthweight + number_in_house, data = data_anchor_reg)
+data_anchor_reg$ps <- predict(ps_mod, type='fitted')
+
+d <- datadist(data_anchor_reg)
+options(datadist="d")
+
+reg_ps_ICU_infl <- lrm(ICU ~ Influenza + rcs(ps, 3), data = data_anchor_reg)
+c(summary(reg_ps_ICU_infl)[which(rownames(summary(reg_ps_ICU_infl)) == 'Influenza - Yes:No')+1,c(4,6:7)],
+  anova(reg_ps_ICU_infl)[which(rownames(anova(reg_ps_ICU_infl)) == 'Influenza'),3])
+plot(Predict(reg_ps_ICU_infl, fun = plogis), ylab='Probability of requiring ICU')[1]
+```
+
+
+
+##### Human metapneumovirus
+
+Odds of requiring ICU:
+
+```{r}
+ps_mod <- lrm(Metapneumovirus ~ age + sex + birthweight + number_in_house, data = data_anchor_reg)
+data_anchor_reg$ps <- predict(ps_mod, type='fitted')
+
+d <- datadist(data_anchor_reg)
+options(datadist="d")
+
+reg_ps_ICU_metapneumo <- lrm(ICU ~ Metapneumovirus + rcs(ps, 3), data = data_anchor_reg)
+c(summary(reg_ps_ICU_metapneumo)[which(rownames(summary(reg_ps_ICU_metapneumo)) == 'Metapneumovirus - Yes:No')+1,c(4,6:7)],
+  anova(reg_ps_ICU_metapneumo)[which(rownames(anova(reg_ps_ICU_metapneumo)) == 'Metapneumovirus'),3])
+plot(Predict(reg_ps_ICU_metapneumo, fun = plogis), ylab='Probability of requiring ICU')[1]
+```
+
+
+
+##### Parainfluenza
+
+Odds of requiring ICU:
+
+```{r}
+ps_mod <- lrm(Parainfluenza ~ age + sex + birthweight + number_in_house, data = data_anchor_reg)
+data_anchor_reg$ps <- predict(ps_mod, type='fitted')
+
+d <- datadist(data_anchor_reg)
+options(datadist="d")
+
+reg_ps_ICU_parainfl <- lrm(ICU ~ Parainfluenza + rcs(ps, 3), data = data_anchor_reg)
+c(summary(reg_ps_ICU_parainfl)[which(rownames(summary(reg_ps_ICU_parainfl)) == 'Parainfluenza - Yes:No')+1,c(4,6:7)],
+  anova(reg_ps_ICU_parainfl)[which(rownames(anova(reg_ps_ICU_parainfl)) == 'Parainfluenza'),3])
+plot(Predict(reg_ps_ICU_parainfl, fun = plogis), ylab='Probability of requiring ICU')[1]
+```
+
+
+##### Rhinovirus/Enterovirus
+
+Odds of requiring ICU:
+
+```{r}
+ps_mod <- lrm(RhinoEnterovirus ~ age + sex + birthweight + number_in_house, data = data_anchor_reg)
+data_anchor_reg$ps <- predict(ps_mod, type='fitted')
+
+d <- datadist(data_anchor_reg)
+options(datadist="d")
+
+reg_ps_ICU_rino <- lrm(ICU ~ RhinoEnterovirus + rcs(ps, 3), data = data_anchor_reg)
+c(summary(reg_ps_ICU_rino)[which(rownames(summary(reg_ps_ICU_rino)) == 'RhinoEnterovirus - Yes:No')+1,c(4,6:7)],
+  anova(reg_ps_ICU_rino)[which(rownames(anova(reg_ps_ICU_rino)) == 'RhinoEnterovirus'),3])
+plot(Predict(reg_ps_ICU_rino, fun = plogis), ylab='Probability of requiring ICU')[2]
+```
+
+
+
+##### RSV
+
+Odds of requiring ICU:
+
+```{r}
+ps_mod <- lrm(RSV ~ age + sex + birthweight + number_in_house, data = data_anchor_reg)
+data_anchor_reg$ps <- predict(ps_mod, type='fitted')
+
+d <- datadist(data_anchor_reg)
+options(datadist="d")
+
+reg_ps_ICU_rsv <- lrm(ICU ~ RSV + rcs(ps, 3), data = data_anchor_reg)
+c(summary(reg_ps_ICU_rsv)[which(rownames(summary(reg_ps_ICU_rsv)) == 'RSV - Yes:No')+1,c(4,6:7)],
+  anova(reg_ps_ICU_rsv)[which(rownames(anova(reg_ps_ICU_rsv)) == 'RSV'),3])
+plot(Predict(reg_ps_ICU_rsv, fun = plogis), ylab='Probability of requiring ICU')[2]
+```
+
+
+
+
+
+
+
+
+
+### Regression: Severity Score {.tabset}
+
+#### All {.tabset}
+
+##### Regression
+
+- Outcome: Severity Score
+- Continuous variables fitted with restricted cubic splines
+
+```{r}
+library(ordinal)
+
+d <- datadist(data_anchor_reg)
+options(datadist="d")
+
+reg_ss <- orm(severity_score ~ rcs(age, 3) + sex + rcs(birthweight, 3) + indoor_polutants +
+                premature + virus_confinfection + global_acute + global_chronic +
+                length_stay_days + antibiotics_prior, data = data_anchor_reg)
+
+r1a <- summary(reg_ss, age = c(12, 6))
+r1b <- summary(reg_ss, age = c(12, 18))
+
+reg_ss_summary_1a <- r1a[grep(' Odds Ratio', rownames(r1a)),]
+reg_ss_summary_1b <- r1b[grep(' Odds Ratio', rownames(r1b)),]
+
+reg_ss_pvals <- anova(reg_ss)[c(2, 5, 6, 3, 7:12), ]
+
+coefs_var <- cbind(reg_ss$coefficients,
+                   reg_ss$coefficients - 1.96*sqrt(diag(reg_ss$var)),
+                   reg_ss$coefficients + 1.96*sqrt(diag(reg_ss$var)))
+coefs_var <- exp(coefs_var)[c(17,14,18:23),]
+
+OR = rbind(c(rep('',3), round(reg_ss_pvals[1, 3], 3)),
+           c(round(cbind(reg_ss_summary_1a[1,4], reg_ss_summary_1a[1,6], reg_ss_summary_1a[1,7]), 2), ''),
+           c(rep('Ref',3), ''),
+           c(round(cbind(reg_ss_summary_1b[1,4], reg_ss_summary_1b[1,6], reg_ss_summary_1b[1,7]), 2), ''),
+           c(rep('',3), round(reg_ss_pvals[2, 3], 3)),
+           c(rep('Ref',3), ''),
+           c(round(cbind(reg_ss_summary_1a[2,4], reg_ss_summary_1a[2,6], reg_ss_summary_1a[1,7]), 2), ''),
+           cbind(round(coefs_var, 2), c(round(reg_ss_pvals[-c(1:2), 3], 3))))
+rownames(OR) <- NULL
+
+reg_ss_print <- data.frame(Variable = c('Age (in months)', '6 months', '12 monhts', '18 months',
+                                        'Birthweight', '2.8', '3.4',
+                                        'Indoor Polutants: Yes',
+                                        'Sex: Male',
+                                        'Premature: Yes',
+                                        'Virus co-infection: Yes',
+                                        'Global Acute malnutrion: Moderate/Severe',
+                                        'Global Chronic malnutrion: Moderate/Severe',
+                                        'Length of stay in hospital (in days)',
+                                        'Antiobitics received prior to admission'),
+                           OR = OR)
+colnames(reg_ss_print) <- c('Variable', 'Odds Ratio', 'Lower CI', 'Upper CI', 'P-value')
+
+reg_ss_print %>% kable(., booktabs = TRUE, align = 'r', digits = 2) %>% kable_styling()
+```
+
+##### Figures
+
+- Probability of using O2:
+
+```{r}
+plot(Predict(reg_ss, fun = plogis))
+```
+
+
+#### Severity Score: Virus {.tabset}
+
+##### Adenovirus
+
+```{r}
+## Paper: using PS or mulivariable regression
+# https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7713675/
+
+ps_mod <- lrm(Adenovirus ~ age + sex + birthweight + number_in_house, data = data_anchor_reg)
+data_anchor_reg$ps <- predict(ps_mod, type='fitted')
+
+d <- datadist(data_anchor_reg)
+options(datadist="d")
+
+reg_ps_ss_adeno <- orm(severity_score ~ Adenovirus + rcs(ps, 3), data = data_anchor_reg)
+c(summary(reg_ps_ss_adeno)[which(rownames(summary(reg_ps_ss_adeno)) == 'Adenovirus - Yes:No')+1,c(4,6:7)],
+  anova(reg_ps_ss_adeno)[which(rownames(anova(reg_ps_ss_adeno)) == 'Adenovirus'),3])
+plot(Predict(reg_ps_ss_adeno, fun = plogis), ylab='Probability of requiring ss')[1]
+```
+
+
+##### Bocavirus
+
+
+
+```{r}
+ps_mod <- lrm(Bocavirus ~ age + sex + birthweight + number_in_house, data = data_anchor_reg)
+data_anchor_reg$ps <- predict(ps_mod, type='fitted')
+
+d <- datadist(data_anchor_reg)
+options(datadist="d")
+
+reg_ps_ss_boca <- orm(severity_score ~ Bocavirus + rcs(ps, 3), data = data_anchor_reg)
+c(summary(reg_ps_ss_boca)[which(rownames(summary(reg_ps_ss_boca)) == 'Bocavirus - Yes:No')+1,c(4,6:7)],
+  anova(reg_ps_ss_boca)[which(rownames(anova(reg_ps_ss_boca)) == 'Bocavirus'),3])
+plot(Predict(reg_ps_ss_boca, fun = plogis), ylab='Probability of requiring ss')[1]
+```
+
+
+
+
+##### Endemic Human Coronaviruses (CoV)
+
+
+
+```{r}
+ps_mod <- lrm(EndemCoronaVirus ~ age + sex + birthweight + number_in_house, data = data_anchor_reg)
+data_anchor_reg$ps <- predict(ps_mod, type='fitted')
+
+d <- datadist(data_anchor_reg)
+options(datadist="d")
+
+reg_ps_ss_endem <- orm(severity_score ~ EndemCoronaVirus + rcs(ps, 3), data = data_anchor_reg)
+c(summary(reg_ps_ss_endem)[which(rownames(summary(reg_ps_ss_endem)) == 'EndemCoronaVirus - Yes:No')+1,c(4,6:7)], 
+  anova(reg_ps_ss_endem)[which(rownames(anova(reg_ps_ss_endem)) == 'EndemCoronaVirus'),3])
+plot(Predict(reg_ps_ss_endem, fun = plogis), ylab='Probability of requiring ss')[1]
+```
+
+
+
+##### SARS-CoV-2
+
+
+
+```{r}
+ps_mod <- lrm(Sars_Cov_2 ~ age + sex + birthweight + number_in_house, data = data_anchor_reg)
+data_anchor_reg$ps <- predict(ps_mod, type='fitted')
+
+d <- datadist(data_anchor_reg)
+options(datadist="d")
+
+reg_ps_ss_sars_covid_2 <- orm(severity_score ~ Sars_Cov_2 + rcs(ps, 3), data = data_anchor_reg)
+c(summary(reg_ps_ss_sars_covid_2)[which(rownames(summary(reg_ps_ss_sars_covid_2)) == 'Sars_Cov_2 - Yes:No')+1,c(4,6:7)],
+  anova(reg_ps_ss_sars_covid_2)[which(rownames(anova(reg_ps_ss_sars_covid_2)) == 'Sars_Cov_2'),3])
+plot(Predict(reg_ps_ss_sars_covid_2, fun = plogis), ylab='Probability of requiring ss')[2]
+```
+
+
+##### Influenza
+
+
+
+```{r}
+ps_mod <- lrm(Influenza ~ age + sex + birthweight + number_in_house, data = data_anchor_reg)
+data_anchor_reg$ps <- predict(ps_mod, type='fitted')
+
+d <- datadist(data_anchor_reg)
+options(datadist="d")
+
+reg_ps_ss_infl <- orm(severity_score ~ Influenza + rcs(ps, 3), data = data_anchor_reg)
+c(summary(reg_ps_ss_infl)[which(rownames(summary(reg_ps_ss_infl)) == 'Influenza - Yes:No')+1,c(4,6:7)],
+  anova(reg_ps_ss_infl)[which(rownames(anova(reg_ps_ss_infl)) == 'Influenza'),3])
+plot(Predict(reg_ps_ss_infl, fun = plogis), ylab='Probability of requiring ss')[1]
+```
+
+
+
+##### Human metapneumovirus
+
+
+
+```{r}
+ps_mod <- lrm(Metapneumovirus ~ age + sex + birthweight + number_in_house, data = data_anchor_reg)
+data_anchor_reg$ps <- predict(ps_mod, type='fitted')
+
+d <- datadist(data_anchor_reg)
+options(datadist="d")
+
+reg_ps_ss_metapneumo <- orm(severity_score ~ Metapneumovirus + rcs(ps, 3), data = data_anchor_reg)
+c(summary(reg_ps_ss_metapneumo)[which(rownames(summary(reg_ps_ss_metapneumo)) == 'Metapneumovirus - Yes:No')+1,c(4,6:7)],
+  anova(reg_ps_ss_metapneumo)[which(rownames(anova(reg_ps_ss_metapneumo)) == 'Metapneumovirus'),3])
+plot(Predict(reg_ps_ss_metapneumo, fun = plogis), ylab='Probability of requiring ss')[1]
+```
+
+
+
+##### Parainfluenza
+
+
+
+```{r}
+ps_mod <- lrm(Parainfluenza ~ age + sex + birthweight + number_in_house, data = data_anchor_reg)
+data_anchor_reg$ps <- predict(ps_mod, type='fitted')
+
+d <- datadist(data_anchor_reg)
+options(datadist="d")
+
+reg_ps_ss_parainfl <- orm(severity_score ~ Parainfluenza + rcs(ps, 3), data = data_anchor_reg)
+c(summary(reg_ps_ss_parainfl)[which(rownames(summary(reg_ps_ss_parainfl)) == 'Parainfluenza - Yes:No')+1,c(4,6:7)],
+  anova(reg_ps_ss_parainfl)[which(rownames(anova(reg_ps_ss_parainfl)) == 'Parainfluenza'),3])
+plot(Predict(reg_ps_ss_parainfl, fun = plogis), ylab='Probability of requiring ss')[1]
+```
+
+
+##### Rhinovirus/Enterovirus
+
+
+
+```{r}
+ps_mod <- lrm(RhinoEnterovirus ~ age + sex + birthweight + number_in_house, data = data_anchor_reg)
+data_anchor_reg$ps <- predict(ps_mod, type='fitted')
+
+d <- datadist(data_anchor_reg)
+options(datadist="d")
+
+reg_ps_ss_rino <- orm(severity_score ~ RhinoEnterovirus + rcs(ps, 3), data = data_anchor_reg)
+c(summary(reg_ps_ss_rino)[which(rownames(summary(reg_ps_ss_rino)) == 'RhinoEnterovirus - Yes:No')+1,c(4,6:7)],
+  anova(reg_ps_ss_rino)[which(rownames(anova(reg_ps_ss_rino)) == 'RhinoEnterovirus'),3])
+plot(Predict(reg_ps_ss_rino, fun = plogis), ylab='Probability of requiring ss')[2]
+```
+
+
+
+##### RSV
+
+
+
+```{r}
+ps_mod <- lrm(RSV ~ age + sex + birthweight + number_in_house, data = data_anchor_reg)
+data_anchor_reg$ps <- predict(ps_mod, type='fitted')
+
+d <- datadist(data_anchor_reg)
+options(datadist="d")
+
+reg_ps_ss_rsv <- orm(severity_score ~ RSV + rcs(ps, 3), data = data_anchor_reg)
+c(summary(reg_ps_ss_rsv)[which(rownames(summary(reg_ps_ss_rsv)) == 'RSV - Yes:No')+1,c(4,6:7)],
+  anova(reg_ps_ss_rsv)[which(rownames(anova(reg_ps_ss_rsv)) == 'RSV'),3])
+plot(Predict(reg_ps_ss_rsv, fun = plogis), ylab='Probability of requiring ss')[2]
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+### Regression: Death {.tabset}
+
+#### All {.tabset}
+
+##### Regression
+
+- Outcome: Death, Yes (=1) vs No (=0). Reference level = No Dead
+- Continuous variables fitted with restricted cubic splines
+
+```{r}
+data_anchor_reg$Dead <- 1*(data_anchor_reg$discharge == 'Dead')
+data_anchor_reg$time_death <- as.numeric(ymd(data_anchor_reg$dod) - ymd(data_anchor_reg$doa))
+data_anchor_reg$time_death <- ifelse(data_anchor_reg$time_death <= 0, NA, data_anchor_reg$time_death)
+data_anchor_reg$tmain <- Surv(data_anchor_reg$time_death, event = data_anchor_reg$Dead)
+```
+
+- Sample size too small for a multivariable regression. There are only `r sum(data_anchor_reg$Dead)`.
+
+##### Table
+
+```{r}
+data_anchor_reg$virus_any_fac <- ifelse(data_anchor_reg$n_virus==0, 'No virus', 'Any virus')
+attr(data_anchor_reg$virus_any_fac, "label") <- "Any virus"
+ta1_Dead <- compareGroups(formula = tmain ~ age + birthweight + indoor_polutants +
+                           premature + virus_confinfection + virus_any_fac + malnut_acute + global_acute + malnut_chronic + global_chronic +
+                           length_stay_days + antibiotics_prior,
+                         data = data_anchor_reg, method = 2)
+export2md(createTable(ta1_Dead, show.all = TRUE))
+```
+
+##### Figure (Kaplan Meier) {.tabset}
+
+###### Overall
+
+```{r}
+library(survminer)
+library(survival)
+fit_cox <- survfit(Surv(time_death, Dead) ~ global_acute, data = data_anchor_reg)
+ggsurvplot(
+  fit_cox,
+  data = data_anchor_reg,
+  size = 1,                 # change line size
+  palette =
+    c("#E7B800", "#2E9FDF"),# custom color palettes
+  conf.int = TRUE,          # Add confidence interval
+  pval = FALSE,              # Add p-value
+  risk.table = FALSE,        # Add risk table
+  risk.table.col = "strata",# Risk table color by groups
+  legend.labs =
+    c("Global Acute: Normal", "Global acute: Moderate/Acute"),    # Change legend labels
+  risk.table.height = 0.25, # Useful to change when you have multiple groups
+  ggtheme = theme_bw(),      # Change ggplot2 theme
+  xlab = 'Days in hospital',
+  font.x = c(18),
+  font.y = c(18),
+  font.xtickslab = c(16),
+  font.ytickslab = c(16),
+  font.legend = c(14),
+  legend.title=""
+  #xlim = c(0,100),
+  #ylim = c(0.50, 1.00)
+)
+```
+
+###### First 30 days
+
+```{r}
+ggsurvplot(
+  fit_cox,
+  data = data_anchor_reg,
+  size = 1,                 # change line size
+  palette =
+    c("#E7B800", "#2E9FDF"),# custom color palettes
+  conf.int = TRUE,          # Add confidence interval
+  pval = FALSE,              # Add p-value
+  risk.table = FALSE,        # Add risk table
+  risk.table.col = "strata",# Risk table color by groups
+  legend.labs =
+    c("Global Acute: Normal", "Global acute: Moderate/Acute"),    # Change legend labels
+  risk.table.height = 0.25, # Useful to change when you have multiple groups
+  ggtheme = theme_bw(),      # Change ggplot2 theme
+  font.x = c(18),
+  font.y = c(18),
+  xlab = 'Days in hospital', 
+  font.xtickslab = c(16),
+  font.ytickslab = c(16),
+  font.legend = c(14),
+  legend.title="",
+  xlim = c(0,31),
+  break.time.by = 5,
+  ylim = c(0.75, 1.00)
+)
+```
+
+
+#### Death: Virus {.tabset}
+
+##### Adenovirus
+
+Hazard ratio: time to death
+
+```{r}
+ps_mod <- lrm(Adenovirus ~ age + sex + birthweight + number_in_house, data = data_anchor_reg)
+data_anchor_reg$ps <- predict(ps_mod, type='fitted')
+data_anchor_reg$weight <- ifelse (data_anchor_reg$Dead==1, 1/(data_anchor_reg$ps), 1/(1-data_anchor_reg$ps))
+
+d <- datadist(data_anchor_reg)
+options(datadist="d")
+
+#reg_ps_Dead_adeno <- lrm(Dead ~ Adenovirus + ps, data = data_anchor_reg)
+reg_ps_Dead_adeno <- cph(Surv(time_death, Dead) ~ Adenovirus, data = data_anchor_reg, weights = weight)
+c(summary(reg_ps_Dead_adeno)[which(rownames(summary(reg_ps_Dead_adeno)) == 'Adenovirus - Yes:No')+1,c(4,6:7)],
+  anova(reg_ps_Dead_adeno)[which(rownames(anova(reg_ps_Dead_adeno)) == 'Adenovirus'),3])
+```
+
+- Number of patients that died and tested positive for the virus: `r sum(data_anchor_reg$Dead == 1 & data_anchor_reg$Adenovirus == 'Yes')`
+
+##### Bocavirus
+
+Hazard ratio: time to death
+
+```{r}
+ps_mod <- lrm(Bocavirus ~ age + sex + birthweight + number_in_house, data = data_anchor_reg)
+data_anchor_reg$ps <- predict(ps_mod, type='fitted')
+data_anchor_reg$weight <- ifelse (data_anchor_reg$Dead==1, 1/(data_anchor_reg$ps), 1/(1-data_anchor_reg$ps))
+
+d <- datadist(data_anchor_reg)
+options(datadist="d")
+
+#reg_ps_Dead_boca <- lrm(Dead ~ Bocavirus + ps, data = data_anchor_reg)
+reg_ps_Dead_boca <- cph(Surv(time_death, Dead) ~ Bocavirus, data = data_anchor_reg, weights = weight)
+c(summary(reg_ps_Dead_boca)[which(rownames(summary(reg_ps_Dead_boca)) == 'Bocavirus - Yes:No')+1,c(4,6:7)],
+  anova(reg_ps_Dead_boca)[which(rownames(anova(reg_ps_Dead_boca)) == 'Bocavirus'),3])
+```
+
+- Number of patients that died and tested positive for the virus: `r sum(data_anchor_reg$Dead == 1 & data_anchor_reg$Bocavirus == 'Yes')`
+
+
+
+##### Endemic Human Coronaviruses (CoV)
+
+Hazard ratio: time to death
+
+```{r}
+ps_mod <- lrm(EndemCoronaVirus ~ age + sex + birthweight + number_in_house, data = data_anchor_reg)
+data_anchor_reg$ps <- predict(ps_mod, type='fitted')
+data_anchor_reg$weight <- ifelse (data_anchor_reg$Dead==1, 1/(data_anchor_reg$ps), 1/(1-data_anchor_reg$ps))
+
+d <- datadist(data_anchor_reg)
+options(datadist="d")
+
+#reg_ps_Dead_endem <- lrm(Dead ~ EndemCoronaVirus + ps, data = data_anchor_reg)
+reg_ps_Dead_endem <- cph(Surv(time_death, Dead) ~ EndemCoronaVirus, data = data_anchor_reg, weights = weight)
+c(summary(reg_ps_Dead_endem)[which(rownames(summary(reg_ps_Dead_endem)) == 'EndemCoronaVirus - Yes:No')+1,c(4,6:7)],
+  anova(reg_ps_Dead_endem)[which(rownames(anova(reg_ps_Dead_endem)) == 'EndemCoronaVirus'),3])
+```
+
+- Number of patients that died and tested positive for the virus: `r sum(data_anchor_reg$Dead == 1 & data_anchor_reg$EndemCoronaVirus == 'Yes')`
+
+
+
+##### SARS-CoV-2
+
+Hazard ratio: time to death
+
+```{r}
+ps_mod <- lrm(Sars_Cov_2 ~ age + sex + birthweight + number_in_house, data = data_anchor_reg)
+data_anchor_reg$ps <- predict(ps_mod, type='fitted')
+data_anchor_reg$weight <- ifelse (data_anchor_reg$Dead==1, 1/(data_anchor_reg$ps), 1/(1-data_anchor_reg$ps))
+
+d <- datadist(data_anchor_reg)
+options(datadist="d")
+
+#reg_ps_Dead_sars_covid_2 <- lrm(Dead ~ Sars_Cov_2 + ps, data = data_anchor_reg)
+reg_ps_Dead_sars_covid_2 <- cph(Surv(time_death, Dead) ~ Sars_Cov_2, data = data_anchor_reg, weights = weight)
+c(summary(reg_ps_Dead_sars_covid_2)[which(rownames(summary(reg_ps_Dead_sars_covid_2)) == 'Sars_Cov_2 - Yes:No')+1,c(4,6:7)],
+  anova(reg_ps_Dead_sars_covid_2)[which(rownames(anova(reg_ps_Dead_sars_covid_2)) == 'Sars_Cov_2'),3])
+```
+
+- Number of patients that died and tested positive for the virus: `r sum(data_anchor_reg$Dead == 1 & data_anchor_reg$Sars_Cov_2 == 'Yes')`
+
+##### Influenza
+
+Hazard ratio: time to death
+
+```{r}
+ps_mod <- lrm(Influenza ~ age + sex + birthweight + number_in_house, data = data_anchor_reg)
+data_anchor_reg$ps <- predict(ps_mod, type='fitted')
+data_anchor_reg$weight <- ifelse (data_anchor_reg$Dead==1, 1/(data_anchor_reg$ps), 1/(1-data_anchor_reg$ps))
+
+d <- datadist(data_anchor_reg)
+options(datadist="d")
+
+#reg_ps_Dead_infl <- lrm(Dead ~ Influenza + ps, data = data_anchor_reg)
+reg_ps_Dead_infl <- cph(Surv(time_death, Dead) ~ Influenza, data = data_anchor_reg, weights = weight)
+c(summary(reg_ps_Dead_infl)[which(rownames(summary(reg_ps_Dead_infl)) == 'Influenza - Yes:No')+1,c(4,6:7)],
+  anova(reg_ps_Dead_infl)[which(rownames(anova(reg_ps_Dead_infl)) == 'Influenza'),3])
+```
+
+- Number of patients that died and tested positive for the virus: `r sum(data_anchor_reg$Dead == 1 & data_anchor_reg$Influenza == 'Yes')`
+
+
+##### Human metapneumovirus
+
+Hazard ratio: time to death
+
+```{r}
+ps_mod <- lrm(Metapneumovirus ~ age + sex + birthweight + number_in_house, data = data_anchor_reg)
+data_anchor_reg$ps <- predict(ps_mod, type='fitted')
+data_anchor_reg$weight <- ifelse (data_anchor_reg$Dead==1, 1/(data_anchor_reg$ps), 1/(1-data_anchor_reg$ps))
+
+d <- datadist(data_anchor_reg)
+options(datadist="d")
+
+#reg_ps_Dead_metapneumo <- lrm(Dead ~ Metapneumovirus + ps, data = data_anchor_reg)
+reg_ps_Dead_metapneumo <- cph(Surv(time_death, Dead) ~ Metapneumovirus, data = data_anchor_reg, weights = weight)
+c(summary(reg_ps_Dead_metapneumo)[which(rownames(summary(reg_ps_Dead_metapneumo)) == 'Metapneumovirus - Yes:No')+1,c(4,6:7)],
+  anova(reg_ps_Dead_metapneumo)[which(rownames(anova(reg_ps_Dead_metapneumo)) == 'Metapneumovirus'),3])
+```
+
+- Number of patients that died and tested positive for the virus: `r sum(data_anchor_reg$Dead == 1 & data_anchor_reg$Metapneumovirus == 'Yes')`
+
+
+
+##### Parainfluenza
+
+Hazard ratio: time to death
+
+```{r}
+ps_mod <- lrm(Parainfluenza ~ age + sex + birthweight + number_in_house, data = data_anchor_reg)
+data_anchor_reg$ps <- predict(ps_mod, type='fitted')
+data_anchor_reg$weight <- ifelse (data_anchor_reg$Dead==1, 1/(data_anchor_reg$ps), 1/(1-data_anchor_reg$ps))
+
+d <- datadist(data_anchor_reg)
+options(datadist="d")
+
+#reg_ps_Dead_parainfl <- lrm(Dead ~ Parainfluenza + ps, data = data_anchor_reg)
+reg_ps_Dead_parainfl <- cph(Surv(time_death, Dead) ~ Parainfluenza, data = data_anchor_reg, weights = weight)
+c(summary(reg_ps_Dead_parainfl)[which(rownames(summary(reg_ps_Dead_parainfl)) == 'Parainfluenza - Yes:No')+1,c(4,6:7)],
+  anova(reg_ps_Dead_parainfl)[which(rownames(anova(reg_ps_Dead_parainfl)) == 'Parainfluenza'),3])
+```
+
+- Number of patients that died and tested positive for the virus: `r sum(data_anchor_reg$Dead == 1 & data_anchor_reg$Parainfluenza == 'Yes')`
+
+
+
+##### Rhinovirus/Enterovirus
+
+Hazard ratio: time to death
+
+```{r}
+ps_mod <- lrm(RhinoEnterovirus ~ age + sex + birthweight + number_in_house, data = data_anchor_reg)
+data_anchor_reg$ps <- predict(ps_mod, type='fitted')
+data_anchor_reg$weight <- ifelse (data_anchor_reg$Dead==1, 1/(data_anchor_reg$ps), 1/(1-data_anchor_reg$ps))
+
+d <- datadist(data_anchor_reg)
+options(datadist="d")
+
+#reg_ps_Dead_rino <- lrm(Dead ~ RhinoEnterovirus + ps, data = data_anchor_reg)
+reg_ps_Dead_rino <- cph(Surv(time_death, Dead) ~ RhinoEnterovirus, data = data_anchor_reg, weights = weight)
+c(summary(reg_ps_Dead_rino)[which(rownames(summary(reg_ps_Dead_rino)) == 'RhinoEnterovirus - Yes:No')+1,c(4,6:7)],
+  anova(reg_ps_Dead_rino)[which(rownames(anova(reg_ps_Dead_rino)) == 'RhinoEnterovirus'),3])
+```
+
+- Number of patients that died and tested positive for the virus: `r sum(data_anchor_reg$Dead == 1 & data_anchor_reg$RhinoEnterovirus == 'Yes')`
+
+
+
+##### RSV
+
+Hazard ratio: time to death
+
+```{r}
+ps_mod <- lrm(RSV ~ age + sex + birthweight + number_in_house, data = data_anchor_reg)
+data_anchor_reg$ps <- predict(ps_mod, type='fitted')
+data_anchor_reg$weight <- ifelse (data_anchor_reg$Dead==1, 1/(data_anchor_reg$ps), 1/(1-data_anchor_reg$ps))
+
+d <- datadist(data_anchor_reg)
+options(datadist="d")
+
+#reg_ps_Dead_rsv <- lrm(Dead ~ RSV + ps, data = data_anchor_reg)
+reg_ps_Dead_rsv <- cph(Surv(time_death, Dead) ~ RSV, data = data_anchor_reg, weights = weight)
+c(summary(reg_ps_Dead_rsv)[which(rownames(summary(reg_ps_Dead_rsv)) == 'RSV - Yes:No')+1,c(4,6:7)],
+  anova(reg_ps_Dead_rsv)[which(rownames(anova(reg_ps_Dead_rsv)) == 'RSV'),3])
+```
+
+- Number of patients that died and tested positive for the virus: `r sum(data_anchor_reg$Dead == 1 & data_anchor_reg$RSV == 'Yes')`
+
+
+
+
+##### Any virus
+
+Hazard ratio: time to death
+
+```{r}
+data_anchor_reg$virus_any <- 1*(data_anchor_reg$n_virus>0) 
+ps_mod <- lrm(virus_any ~ age + sex + birthweight + number_in_house, data = data_anchor_reg)
+data_anchor_reg$ps <- predict(ps_mod, type='fitted')
+data_anchor_reg$weight <- ifelse (data_anchor_reg$Dead==1, 1/(data_anchor_reg$ps), 1/(1-data_anchor_reg$ps))
+
+d <- datadist(data_anchor_reg)
+options(datadist="d")
+
+#reg_ps_Dead_rsv <- lrm(Dead ~ RSV + ps, data = data_anchor_reg)
+reg_ps_Dead_virusany <- cph(Surv(time_death, Dead) ~ virus_any, data = data_anchor_reg, weights = weight)
+c(summary(reg_ps_Dead_virusany)[which(rownames(summary(reg_ps_Dead_virusany)) == 'virus_any')+1,c(4,6:7)],
+  anova(reg_ps_Dead_virusany)[which(rownames(anova(reg_ps_Dead_virusany)) == 'virus_any'),3])
+```
+
+- Number of patients that died and tested positive for **any** virus: `r sum(data_anchor_reg$Dead == 1 & data_anchor_reg$virus_any == 1 & !is.na(data_anchor_reg$time_death))`
+
+
+
+
+## RSV {.tabset}
+
+```{r}
+data_rsv <- data_bsl
+contvars <- c('age', 'ga_weeks', 'birthweight', 'bf_duration', 'weight', 'height',
+              'number_in_house',
+              #'number_in_house_less_5', 'number_in_house_sick', 'household_member_smokes',
+              'malaria_smear_result',
+              'o2_sat', 'diet', 'bmi', 'zbmi', 'malnut_acute', 'malnut_chronic')
+```
+
+```{r}
+data_rsv$id <- as.character(data_rsv$id)
+data_virus <- dd2 %>%
+  dplyr::select(-Study.ID) %>%
+  filter(id %in% data_rsv$id) %>%
+  left_join(data_rsv, by='id') %>%
+  rename(round1 = Target.result.1,
+         round2 = Target.result.2,
+         round3 = Target.result.3,
+         round4 = Target.result.4) %>%
+  mutate(round2 = ifelse(round2 == ' RSVA', 'RSVA', round2),
+         round3 = ifelse(round3 == ' RSVA', 'RSVA', round3),
+         sars_cov2_coinfection = ifelse(round1 == 'SARS-CoV-2' | round2 == 'SARS-CoV-2' |
+                                          round3 == 'SARS-CoV-2' | round4 == 'SARS-CoV-2', 'Yes', 'No'),
+         other_rep_virus = ifelse(!(round1 %in% c('RSVA', 'RSVB', 'SARS-CoV-2', '')) |
+                                    !(round2 %in% c('RSVA', 'RSVB', 'SARS-CoV-2', '')) |
+                                    !(round3 %in% c('RSVA', 'RSVB', 'SARS-CoV-2', '')) |
+                                    !(round4 %in% c('RSVA', 'RSVB', 'SARS-CoV-2', '')), 'Yes', 'No'),
+         rsv = ifelse(round1 %in% c('RSVA', 'RSVB') |
+                        round2 %in% c('RSVA', 'RSVB') |
+                        round3 %in% c('RSVA', 'RSVB') |
+                        round4 %in% c('RSVA', 'RSVB'), 'Yes', 'No'),
+         rsv = ifelse(round1 %in% c('RSVA', 'RSVB') |
+                        round2 %in% c('RSVA', 'RSVB') |
+                        round3 %in% c('RSVA', 'RSVB') |
+                        round4 %in% c('RSVA', 'RSVB'), 'Yes', 'No'))
+
+data_virus_comb <- data_virus %>%
+  dplyr::select(id, sars_cov2_coinfection, other_rep_virus)
+
+data_virus_fig <- data_virus %>%
+  dplyr::select(id, round1, round2, round3, round4, doa) %>%
+  filter(!is.na(doa)) %>%
+  mutate(year = year(ymd(doa)),
+         month = month(ymd(doa)),
+         month = ifelse(is.na(month), NA,
+                        ifelse(month <= 9, paste0('0',month), month)),
+         ym = paste0(year, '/', month))
+
+data_virus_fig <- data_virus_fig %>%
+  pivot_longer(cols = c(round1, round2, round3, round4),
+               names_to = 'round',
+               values_to = 'virus') %>%
+  filter(virus %in% c('RSVA', 'RSVB'))
+
+data_virus_figv2 <- as.data.frame(table(data_virus_fig$ym, data_virus_fig$virus))
+data_virus_figv2$Var1 <- as.character(data_virus_figv2$Var1)
+```
+
+```{r}
+rsv_type <- data_virus_fig %>%
+  dplyr::select(id, virus)
+
+data_rsv <- data_rsv %>%
+  filter(id %in% data_virus_fig$id) %>%
+  left_join(rsv_type, by = 'id') %>%
+  left_join(data_virus_comb, by = 'id')
+
+attr(data_rsv$virus, "label") <- "Virus"
+attr(data_rsv$sars_cov2_coinfection, "label") <- "SARS-CoV-2 co-infection"
+attr(data_rsv$other_rep_virus, "label") <- "Other respiratory virus detected"
+```
+
+### Table 1 {.tabset}
+
+#### Demographics + clinical
+
+```{r}
+tab1_rsv_dem <- descrTable(formula = ~ sex + age +
+                             number_in_house + number_in_house_less_5 + 
+                             number_in_house_less_5_group + sick_2weeks +
+                             household_member_smokes + use_indoor_burning_stove +
+                             premature + mode_of_delivery + birthweight +
+                             bf_duration + weight + bmi + zbmi + malnut_acute + malnut_chronic +
+                             pneumonia + bronchiolitis + bronchitis +
+                             croup + asthma + malnutrition + hiv_aids + antimalaria_any +
+                             malaria_diagnosis + malaria_RDT_result + malaria_smear_result + 
+                             malaria_smear_result_greater_zero + malaria_smear_result + tb +
+                             sars_cov2_coinfection + other_rep_virus +
+                             cough +  dyspnea + fast_breathing + runny_nose + nasal_congestion +
+                             poor_feeding + diarrhea + vomiting + apnea +
+                             resp_rate + o2_sat + flaring_accessory + flaring_accessory1 +
+                             wheezing + discharge,
+                           data = data_rsv, method = 2)
+export2md(tab1_rsv_dem)
+
+if (print_all)
+export2word(tab1_rsv_dem, file = 'C:/Users/amorigg1/OneDrive - VUMC/Documents/PRISM/RSV-Influenza/tables/table1_rsv.docx')
+```
+
+#### By RSV type
+
+```{r}
+exclude_vars <- c('id', 'dob', 'doa', 'antibiotic_other_type')
+
+tab1_rsv_dem_str <- compareGroups(formula = virus ~ sex + age +
+                                 number_in_house + number_in_house_less_5 + number_in_house_less_5_group +
+                                 household_member_smokes + use_indoor_burning_stove +
+                                 premature + mode_of_delivery + birthweight +
+                                 bf_duration + weight + bmi + zbmi + malnut_acute + malnut_chronic +
+                                 pneumonia + bronchiolitis + bronchitis +
+                                 croup + asthma + malnutrition + hiv_aids + antimalaria_any +
+                                 malaria_diagnosis + malaria_RDT_result + malaria_smear_result + 
+                                 malaria_smear_result_greater_zero + malaria_smear_result + tb +
+                                 sars_cov2_coinfection + other_rep_virus +
+                                 cough +  dyspnea + fast_breathing + runny_nose + nasal_congestion +
+                                 poor_feeding + diarrhea + vomiting + apnea +
+                                 resp_rate + o2_sat + flaring_accessory + flaring_accessory1 +
+                                 wheezing + discharge,
+                               data = data_rsv, method = 2)
+export2md(createTable(tab1_rsv_dem_str, show.all = TRUE))
+
+if (print_all)
+export2word(createTable(tab1_rsv_dem_str), file = 'C:/Users/amorigg1/OneDrive - VUMC/Documents/PRISM/RSV-Influenza/tables/table2_rsv.docx')
+```
+
+### Figures {.tabset}
+
+#### Stacked
+
+```{r}
+data_virus_figv_extra_months <- data.frame(Var1 = c('2021/02', '2021/04', '2021/02', '2021/04'),
+                                           Var2 = c('RSVA', 'RSVA', 'RSVB', 'RSVB'),
+                                           Freq = c(0, 0, 0, 0))
+
+data_virus_figv2b <- bind_rows(data_virus_figv2,
+                               data_virus_figv_extra_months)
+
+ggplot(data_virus_figv2b, aes(x = Var1, y = Freq, fill = Var2)) +
+  geom_bar(stat="identity") +
+  scale_fill_brewer(palette="Paired") +
+  theme_bw() +
+  xlab('') +
+  ylab('Frequency') +
+  #xlab('Calendar time (year/month') +
+  xlab('') +
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=1)) +
+  guides(fill = guide_legend(title=""))
+
+if (print_all)
+ggsave('C:/Users/amorigg1/OneDrive - VUMC/Documents/PRISM/RSV-Influenza/figures/fig_rsv_1.png', width = 8, height = 8)
+```
+
+#### By side
+
+```{r}
+ggplot(data_virus_figv2b, aes(x = as.numeric(as.factor(Var1)), y = Freq, fill = Var2)) +
+  geom_bar(stat="identity", position='dodge') +
+  scale_fill_brewer(palette="Paired") +
+  theme_bw() +
+  xlab('') +
+  ylab('Frequency') +
+  #xlab('Calendar time (year/month') +
+  scale_x_continuous(breaks=c(1:13),
+        labels=unique(data_virus_figv2b$Var1)) +
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=1)) +
+  labs(fill='')
+
+if (print_all)
+ggsave('C:/Users/amorigg1/OneDrive - VUMC/Documents/PRISM/RSV-Influenza/figures/fig_rsv_2.png', width = 8, height = 8)
+```
+
+#### Individual
+
+```{r}
+ggplot(data_virus_figv2b, aes(x = as.factor(Var1), y = Freq, fill = Var2)) +
+  geom_bar(stat="identity", position='dodge') +
+  scale_fill_brewer(palette="Paired") +
+  theme_bw() +
+  xlab('') +
+  ylab('Frequency') +
+  #xlab('Calendar time (year/month') +
+  facet_wrap(~Var2, scale='free_y', nrow=4) +
+#  geom_smooth(data=data_virus_figv2, aes(x=as.numeric(as.factor(Var1)), y=Freq),
+#              colour = "black", size = 1.1, se = FALSE, span= 0.75) +
+  #scale_x_continuous(breaks=c(1:13),
+  #      labels=unique(data_virus_figv2b$Var1)) +
+  theme(legend.position = 'none',
+        axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=1))
+
+if (print_all)
+  ggsave('C:/Users/amorigg1/OneDrive - VUMC/Documents/PRISM/RSV-Influenza/figures/fig_rsv_3.png', width = 8, height = 8)
+```
+
+
+#### Line
+
+```{r}
+tot_rsv <- aggregate(data_virus_figv2$Freq, list(data_virus_figv2$Var1), sum)
+tot_rsv <- data.frame(Var1 = tot_rsv$Group.1, Freq = tot_rsv$x, Var2 = 'RSV Total')
+data_virus_figv3 <- bind_rows(data_virus_figv2, tot_rsv)
+
+data_virus_figv_extra_months <- data.frame(Var1 = c('2021/02', '2021/04', '2021/02',
+                                                    '2021/04', '2021/02', '2021/04'),
+                                           Var2 = c('RSVA', 'RSVA', 'RSVB', 'RSVB',
+                                                    'RSV Total', 'RSV Total'),
+                                           Freq = c(0, 0, 0, 0, 0, 0))
+
+data_virus_figv3b <- bind_rows(data_virus_figv3,
+                               data_virus_figv_extra_months)
+
+#ggplot(data_virus_figv2, aes(x = as.numeric(as.factor(Var1)), y = Freq, fill = Var2)) +
+ggplot(data_virus_figv3b, aes(x = as.numeric(as.factor(Var1)), y = Freq, color = Var2, group = Var2)) +
+  #geom_bar(stat="identity", position='dodge') +
+  #scale_fill_brewer(palette="Paired") +
+  scale_color_manual(values=c('grey', 'lightblue', 'darkblue')) +
+  geom_line(aes(linetype = Var2), size = 1.2) +
+  scale_linetype_manual(values = c("dashed", 'solid', 'solid')) +
+  theme_bw() +
+  xlab('') +
+  ylab('Frequency') +
+  scale_x_continuous(breaks=c(1:13),
+        labels=unique(data_virus_figv2b$Var1)) +
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=1)) +
+  labs(color='') +
+  labs(linetype='')
+
+if (print_all)
+ggsave('C:/Users/amorigg1/OneDrive - VUMC/Documents/PRISM/RSV-Influenza/figures/fig_rsv_4.png', width = 8, height = 8)
+```
+
+
+
+
+## Wheezing {.tabset}
+
+```{r}
+data_bsl$id <- as.character(data_bsl$id)
+data_virus_wheez <- dd2 %>%
+  dplyr::select(-Study.ID) %>%
+  #filter(id %in% data_anchor$id) %>%
+  left_join(data_bsl, by='id') %>%
+  rename(round1 = Target.result.1,
+         round2 = Target.result.2,
+         round3 = Target.result.3,
+         round4 = Target.result.4) %>%
+  mutate(round1 = ifelse(is.na(round1), NA,
+                         ifelse(round1 == '', NA,
+                                ifelse(round1 %in% c('CoV HKU1',
+                                                     'CoV OC43',
+                                                     'CoV NL63',
+                                                     'CoV 229E'), 'Endemic human coronavirus',
+                                       ifelse(round1 %in% c('PIV1',
+                                                            'PIV2',
+                                                            'PIV3',
+                                                            'PIV4A',
+                                                            'PIV4A ',
+                                                            'PIV4B'), 'Parainfluenza',
+                                              ifelse(round1 %in% c('FluA H3',
+                                                                   'FluA 2009 H1N1',
+                                                                   'FluB VIC', 'FluC'), 'Influenza',
+                                                     ifelse(round1 %in% c('RSVA', ' RSVA',
+                                                                          'RSVB'), 'RSV',
+                                                            round1)))))),
+         round2 = ifelse(is.na(round2), NA,
+                         ifelse(round2 == '', NA,
+                                ifelse(round2 %in% c('CoV HKU1',
+                                                     'CoV OC43',
+                                                     'CoV NL63',
+                                                     'CoV 229E'), 'Endemic human coronavirus',
+                                       ifelse(round2 %in% c('PIV1',
+                                                            'PIV2',
+                                                            'PIV3',
+                                                            'PIV4A',
+                                                            'PIV4A ',
+                                                            'PIV4B'), 'Parainfluenza',
+                                              ifelse(round2 %in% c('FluA H3',
+                                                                   'FluA 2009 H1N1',
+                                                                   'FluB VIC', 'FluC'), 'Influenza',
+                                                     ifelse(round2 %in% c('RSVA', ' RSVA',
+                                                                          'RSVB'), 'RSV',
+                                                            round2)))))),
+         round3 = ifelse(is.na(round3), NA,
+                         ifelse(round3 == '', NA,
+                                ifelse(round3 %in% c('CoV HKU1',
+                                                     'CoV OC43',
+                                                     'CoV NL63',
+                                                     'CoV 229E'), 'Endemic human coronavirus',
+                                       ifelse(round3 %in% c('PIV1',
+                                                            'PIV2',
+                                                            'PIV3',
+                                                            'PIV4A',
+                                                            'PIV4A ',
+                                                            'PIV4B'), 'Parainfluenza',
+                                              ifelse(round3 %in% c('FluA H3',
+                                                                   'FluA 2009 H1N1',
+                                                                   'FluB VIC', 'FluC'), 'Influenza',
+                                                     ifelse(round3 %in% c('RSVA', ' RSVA',
+                                                                          'RSVB'), 'RSV',
+                                                            round3)))))),
+         round4 = ifelse(is.na(round4), NA,
+                         ifelse(round4 == '', NA,
+                                ifelse(round4 %in% c('CoV HKU1',
+                                                     'CoV OC43',
+                                                     'CoV NL63',
+                                                     'CoV 229E'), 'Endemic human coronavirus',
+                                       ifelse(round4 %in% c('PIV1',
+                                                            'PIV2',
+                                                            'PIV3',
+                                                            'PIV4A',
+                                                            'PIV4A ',
+                                                            'PIV4B'), 'Parainfluenza',
+                                              ifelse(round4 %in% c('FluA H3',
+                                                                   'FluA 2009 H1N1',
+                                                                   'FluB VIC', 'FluC'), 'Influenza',
+                                                     ifelse(round4 %in% c('RSVA', ' RSVA',
+                                                                          'RSVB'), 'RSV',
+                                                            round4))))))) %>%
+  filter(!is.na(round1))
+
+data_virus_fig <- data_virus_wheez %>%
+  dplyr::select(round1, round2, round3, round4, doa, id, wheezing) %>%
+  filter(!is.na(doa)) %>%
+  mutate(year = year(ymd(doa)),
+         month = month(ymd(doa)),
+         month = ifelse(is.na(month), NA,
+                        ifelse(month <= 9, paste0('0',month), month)),
+         ym = paste0(year, '/', month))
+
+data_virus_fig <- data_virus_fig %>%
+  pivot_longer(cols = c(round1, round2, round3, round4),
+               names_to = 'round',
+               values_to = 'virus') %>%
+  filter(!(virus %in% c('Chlamydophila pneumo', 'Mycoplasma pneumonia', 'Mycoplasma Pneumo')))
+
+xx <- apply(data_virus[,c('round1', 'round2', 'round3', 'round4')], 1, FUN = function(x) sum(!is.na(x))>1)
+data_virus_coinfec <- data.frame(id = data_virus$id, coinfection = ifelse(xx, 'Yes', 'No'))
+
+data_virus_figv2 <- as.data.frame(table(data_virus_fig$ym, data_virus_fig$virus))
+data_virus_figv2$Var1 <- as.character(data_virus_figv2$Var1)
+```
+
+### Demographics + clinical
+
+```{r}
+data_wheez <- data_bsl %>%
+  left_join(data_virus_coinfec, by = 'id') %>%
+  filter(id %in% data_virus_wheez$id)
+
+tab1_wheez_cg <- compareGroups(formula = wheezing ~ age + sex +
+                               household_member_smokes + use_indoor_burning_stove +
+                               premature + mode_of_delivery + twin + birthweight +
+                               bmi + zbmi + malnut_acute + malnut_chronic + temperature + o2_delivered + xray_abnormal + icu +
+                               hiv_aids + tb + sickle_cell + length_stay + length_stay_days + coinfection,
+                           data = data_wheez, method = 2)
+export2md(createTable(tab1_wheez_cg, show.all = TRUE))
+
+if (print_all)
+export2word(createTable(tab1_wheez_cg, show.all = TRUE), file = 'C:/Users/amorigg1/OneDrive - VUMC/Documents/PRISM/RSV-Influenza/tables/table1_wheez_1.docx')
+```
+
+### Virus
+
+```{r}
+tab1_virus_wheez <- compareGroups(formula = wheezing ~ virus, data = data_virus_fig)
+export2md(createTable(tab1_virus_wheez, show.all = TRUE))
+
+if (print_all)
+export2word(createTable(tab1_virus_wheez, show.all = TRUE), file = 'C:/Users/amorigg1/OneDrive - VUMC/Documents/PRISM/RSV-Influenza/tables/table1_wheez_virus.docx')
+```
+
+
+
+
+
+
+
+
+
+
+
+
